@@ -38,6 +38,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set lowercase repository owner
+        id: lowercase
+        run: |
+          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -52,7 +57,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}
+          images: ghcr.io/${{ steps.lowercase.outputs.owner }}/crypto-viz-${{ matrix.service.name }}
           tags: |
             type=raw,value=latest
             type=sha,prefix={{branch}}-
@@ -65,8 +70,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}:buildcache,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ steps.lowercase.outputs.owner }}/crypto-viz-${{ matrix.service.name }}:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ steps.lowercase.outputs.owner }}/crypto-viz-${{ matrix.service.name }}:buildcache,mode=max
 
   deploy:
     name: Deploy to Oracle VM
@@ -76,6 +81,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set lowercase repository owner
+        id: lowercase
+        run: |
+          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Create .env.production on VM
         uses: appleboy/ssh-action@v1.0.0
@@ -165,11 +175,11 @@ jobs:
             sed -i 's|context:|# context:|g' docker-compose.yml
             sed -i 's|dockerfile:|# dockerfile:|g' docker-compose.yml
 
-            # Add image references for custom services
-            sed -i '/container_name: crypto-viz-backend/a\    image: ${{ env.IMAGE_PREFIX }}-backend:latest' docker-compose.yml
-            sed -i '/container_name: crypto-viz-frontend/a\    image: ${{ env.IMAGE_PREFIX }}-frontend:latest' docker-compose.yml
-            sed -i '/container_name: crypto-viz-analytics-builder/a\    image: ${{ env.IMAGE_PREFIX }}-analytics:latest' docker-compose.yml
-            sed -i '/container_name: crypto-viz-web-scraper/a\    image: ${{ env.IMAGE_PREFIX }}-scraper:latest' docker-compose.yml
+            # Add image references for custom services (lowercase)
+            sed -i '/container_name: crypto-viz-backend/a\    image: ghcr.io/${{ steps.lowercase.outputs.owner }}/crypto-viz-backend:latest' docker-compose.yml
+            sed -i '/container_name: crypto-viz-frontend/a\    image: ghcr.io/${{ steps.lowercase.outputs.owner }}/crypto-viz-frontend:latest' docker-compose.yml
+            sed -i '/container_name: crypto-viz-analytics-builder/a\    image: ghcr.io/${{ steps.lowercase.outputs.owner }}/crypto-viz-analytics:latest' docker-compose.yml
+            sed -i '/container_name: crypto-viz-web-scraper/a\    image: ghcr.io/${{ steps.lowercase.outputs.owner }}/crypto-viz-scraper:latest' docker-compose.yml
 
             # Pull latest images
             docker-compose pull

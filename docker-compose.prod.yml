@@ -209,7 +209,7 @@ services:
   # APPLICATION SERVICES (FROM GITHUB REGISTRY)
   # ======================
   web-scraper:
-    image: ghcr.io/paulinfourquet/crypto-viz-scraper:latest
+    image: ghcr.io/crypto-viz-nce10/crypto-viz-scraper:latest
     container_name: crypto-viz-web-scraper
     restart: unless-stopped
     depends_on:
@@ -227,7 +227,7 @@ services:
       - crypto-viz-network
 
   analytics-builder:
-    image: ghcr.io/paulinfourquet/crypto-viz-analytics:latest
+    image: ghcr.io/crypto-viz-nce10/crypto-viz-analytics:latest
     container_name: crypto-viz-analytics-builder
     restart: unless-stopped
     depends_on:
@@ -254,7 +254,7 @@ services:
       - crypto-viz-network
 
   backend:
-    image: ghcr.io/paulinfourquet/crypto-viz-backend:latest
+    image: ghcr.io/crypto-viz-nce10/crypto-viz-backend:latest
     container_name: crypto-viz-backend
     restart: unless-stopped
     ports:
@@ -287,7 +287,7 @@ services:
       start_period: 120s
 
   frontend:
-    image: ghcr.io/paulinfourquet/crypto-viz-frontend:latest
+    image: ghcr.io/crypto-viz-nce10/crypto-viz-frontend:latest
     container_name: crypto-viz-frontend
     restart: unless-stopped
     ports:
