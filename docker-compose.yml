@@ -1,0 +1,340 @@
+version: '3.8'
+
+networks:
+  crypto-viz-network:
+    driver: bridge
+
+volumes:
+  zookeeper_data:
+  kafka_data:
+  ollama_data:
+  postgres_data:
+  redis_data:
+  spark_data:
+  duckdb_data:
+  shared_data:
+
+services:
+  # ======================
+  # ZOOKEEPER (Configuration simplifiée)
+  # ======================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: crypto-viz-zookeeper
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - crypto-viz-network
+    # Health check simplifié
+    healthcheck:
+      test: ["CMD-SHELL", "echo stat | nc localhost 2181 | grep Mode || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 120s
+
+  # ======================
+  # KAFKA (Attente manuelle de Zookeeper)
+  # ======================
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: crypto-viz-kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper  # Dépendance simple sans condition
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - crypto-viz-network
+    # Health check retardé
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 10
+      start_period: 180s  # 3 minutes de délai
+
+  # ======================
+  # OLLAMA (Sans condition de santé stricte)
+  # ======================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: crypto-viz-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - crypto-viz-network
+    # Health check très tolérant
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:11434/api/tags || exit 1"]
+      interval: 120s
+      timeout: 60s
+      retries: 10
+      start_period: 300s  # 5 minutes pour démarrage
+
+  # ======================
+  # POSTGRESQL (Long-term storage)
+  # ======================
+  postgres:
+    image: postgres:15-alpine
+    container_name: crypto-viz-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-crypto_viz}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-crypto_viz_password}
+      - POSTGRES_DB=${POSTGRES_DB:-crypto_analytics}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - crypto-viz-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crypto_viz} -d ${POSTGRES_DB:-crypto_analytics}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ======================
+  # REDIS (Cache pour API)
+  # ======================
+  redis:
+    image: redis:7-alpine
+    container_name: crypto-viz-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - crypto-viz-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ======================
+  # SPARK MASTER (Port 8082 - évite conflit avec MySQL 8080)
+  # ======================
+  spark-master:
+    image: apache/spark:3.5.0
+    container_name: crypto-viz-spark-master
+    restart: unless-stopped
+    ports:
+      - "8082:8080"  # Port externe 8082 -> port interne 8080
+      - "7077:7077"
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+    volumes:
+      - spark_data:/opt/spark/work
+      - shared_data:/app/data
+    networks:
+      - crypto-viz-network
+    # Health check très tolérant (port interne 8080)
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080 || exit 1"]
+      interval: 120s
+      timeout: 60s
+      retries: 10
+      start_period: 240s  # 4 minutes
+
+  # ======================
+  # SPARK WORKERS (Ports séquentiels)
+  # ======================
+  spark-worker-1:
+    image: apache/spark:3.5.0
+    container_name: crypto-viz-spark-worker-1
+    restart: unless-stopped
+    ports:
+      - "8083:8081"  # Port externe 8083 -> port interne 8081
+    depends_on:
+      - spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_DIR=/opt/spark/work-dir
+    volumes:
+      - spark_data:/opt/spark/work-dir
+      - shared_data:/app/data
+    networks:
+      - crypto-viz-network
+
+  spark-worker-2:
+    image: apache/spark:3.5.0
+    container_name: crypto-viz-spark-worker-2
+    restart: unless-stopped
+    ports:
+      - "8084:8081"  # Port externe 8084 -> port interne 8081
+    depends_on:
+      - spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_DIR=/opt/spark/work-dir
+    volumes:
+      - spark_data:/opt/spark/work-dir
+      - shared_data:/app/data
+    networks:
+      - crypto-viz-network
+
+  # ======================
+  # APPLICATION SERVICES (Démarrage différé)
+  # ======================
+  web-scraper:
+    build:
+      context: ./services/scraper
+      dockerfile: Dockerfile
+    container_name: crypto-viz-web-scraper
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - NEWS_API_KEY=${NEWS_API_KEY:-}
+      - COINMARKETCAP_API_KEY=${COINMARKETCAP_API_KEY:-}
+      - SCRAPER_INTERVAL=${SCRAPER_INTERVAL:-60}
+      - CRYPTO_COUNT=${CRYPTO_COUNT:-6}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - shared_data:/app/data
+    networks:
+      - crypto-viz-network
+
+  analytics-builder:
+    build:
+      context: ./services/analytics
+      dockerfile: Dockerfile
+    container_name: crypto-viz-analytics-builder
+    restart: unless-stopped
+    depends_on:
+      - kafka
+      - spark-master
+      - postgres
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+      - DUCKDB_PATH=/app/data/crypto_analytics.db
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-crypto_viz}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-crypto_viz_password}
+      - POSTGRES_DB=${POSTGRES_DB:-crypto_analytics}
+      - ANALYTICS_INTERVAL=${ANALYTICS_INTERVAL:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - shared_data:/app/data
+      - duckdb_data:/app/data
+    networks:
+      - crypto-viz-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: crypto-viz-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"  # Port 8000 pour l'API backend
+    depends_on:
+      - kafka
+      - postgres
+      - redis
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-crypto_viz}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-crypto_viz_password}
+      - POSTGRES_DB=${POSTGRES_DB:-crypto_analytics}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - shared_data:/app/data
+    networks:
+      - crypto-viz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 120s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: crypto-viz-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"  # Port 3000 pour le frontend Vue.js
+    depends_on:
+      - backend
+    environment:
+      - VUE_APP_BACKEND_URL=${VUE_APP_BACKEND_URL:-http://localhost:8000}
+      - VUE_APP_WEBSOCKET_URL=${VUE_APP_WEBSOCKET_URL:-ws://localhost:8000/ws}
+    networks:
+      - crypto-viz-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 90s
+
+  # ======================
+  # MONITORING (Port 8081 - évite conflit avec Spark)
+  # ======================
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: crypto-viz-kafka-ui
+    restart: unless-stopped
+    ports:
+      - "8085:8080"  # Port externe 8085 -> port interne 8080
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: crypto-viz-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - crypto-viz-network

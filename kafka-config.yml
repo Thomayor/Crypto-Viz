@@ -1,0 +1,182 @@
+# Kafka Configuration for Crypto Visualization Project
+# This file contains topic configurations and settings for the streaming architecture
+
+kafka:
+  cluster:
+    name: crypto-viz-cluster
+    bootstrap_servers: 
+      - kafka:29092
+      - localhost:9092
+    
+  # Topic Configurations
+  topics:
+    # Main data topics
+    crypto-news:
+      partitions: 3
+      replication_factor: 1
+      retention_ms: 604800000  # 7 days
+      cleanup_policy: delete
+      compression_type: gzip
+      description: "Topic for cryptocurrency news and market sentiment data"
+      configs:
+        segment.ms: 3600000     # 1 hour segments
+        min.insync.replicas: 1
+        max.message.bytes: 1048576  # 1MB
+        
+    crypto-prices:
+      partitions: 6  # Optimized for high throughput price data
+      replication_factor: 1
+      retention_ms: 2592000000  # 30 days
+      cleanup_policy: delete
+      compression_type: lz4  # Fast compression for real-time data
+      description: "Topic for real-time cryptocurrency price data"
+      configs:
+        segment.ms: 1800000     # 30 minute segments
+        min.insync.replicas: 1
+        max.message.bytes: 524288   # 512KB
+        batch.size: 65536
+        
+    analytics-data:
+      partitions: 3
+      replication_factor: 1
+      retention_ms: 1209600000  # 14 days
+      cleanup_policy: delete
+      compression_type: snappy
+      description: "Topic for processed analytics and aggregated data"
+      configs:
+        segment.ms: 7200000     # 2 hour segments
+        min.insync.replicas: 1
+        max.message.bytes: 2097152  # 2MB for larger analytics payloads
+        
+    alerts:
+      partitions: 2
+      replication_factor: 1
+      retention_ms: 259200000   # 3 days
+      cleanup_policy: delete
+      compression_type: gzip
+      description: "Topic for system alerts and notifications"
+      configs:
+        segment.ms: 3600000     # 1 hour segments
+        min.insync.replicas: 1
+        max.message.bytes: 262144   # 256KB
+        
+    # Dead Letter Queue topics
+    dlq-crypto-news:
+      partitions: 1
+      replication_factor: 1
+      retention_ms: 604800000   # 7 days
+      cleanup_policy: delete
+      description: "Dead letter queue for failed crypto-news messages"
+      
+    dlq-crypto-prices:
+      partitions: 1
+      replication_factor: 1
+      retention_ms: 604800000   # 7 days
+      cleanup_policy: delete
+      description: "Dead letter queue for failed crypto-prices messages"
+      
+    # System monitoring topic
+    system-logs:
+      partitions: 2
+      replication_factor: 1
+      retention_ms: 2592000000  # 30 days
+      cleanup_policy: delete
+      description: "Topic for system logs and monitoring data"
+
+  # Producer configurations
+  producers:
+    default:
+      acks: 1
+      retries: 3
+      batch_size: 16384
+      linger_ms: 5
+      buffer_memory: 33554432
+      compression_type: snappy
+      max_in_flight_requests_per_connection: 5
+      enable_idempotence: true
+      
+    crypto-prices-producer:
+      acks: 1
+      retries: 2
+      batch_size: 65536
+      linger_ms: 1  # Low latency for price data
+      compression_type: lz4
+      
+    analytics-producer:
+      acks: 1
+      retries: 5
+      batch_size: 32768
+      linger_ms: 10
+      compression_type: snappy
+
+  # Consumer configurations  
+  consumers:
+    default:
+      auto_offset_reset: earliest
+      enable_auto_commit: true
+      auto_commit_interval_ms: 5000
+      session_timeout_ms: 30000
+      heartbeat_interval_ms: 3000
+      max_poll_records: 500
+      fetch_min_bytes: 1
+      fetch_max_wait_ms: 500
+      
+    analytics-consumer:
+      auto_offset_reset: latest
+      max_poll_records: 100
+      fetch_min_bytes: 50000
+      fetch_max_wait_ms: 1000
+      
+    alert-consumer:
+      auto_offset_reset: earliest
+      max_poll_records: 10  # Process alerts one by one
+      session_timeout_ms: 10000
+
+# Schema Registry Configuration (if needed in future)
+schema_registry:
+  enabled: false
+  url: http://schema-registry:8081
+  
+# Connect Configuration (if needed for connectors)
+kafka_connect:
+  enabled: false
+  url: http://kafka-connect:8083
+  
+# Monitoring and Management
+management:
+  kafka_ui:
+    enabled: true
+    port: 8081
+    clusters:
+      - name: crypto-viz-cluster
+        bootstrap_servers: kafka:29092
+        zookeeper: zookeeper:2181
+        
+  jmx:
+    enabled: true
+    port: 9999
+    
+  health_check:
+    enabled: true
+    interval_seconds: 30
+    topics_to_check:
+      - crypto-news
+      - crypto-prices
+      - analytics-data
+      - alerts
+
+# Environment specific overrides
+environments:
+  development:
+    kafka:
+      auto_create_topics_enable: true
+      delete_topic_enable: true
+      log_retention_hours: 24
+      
+  production:
+    kafka:
+      auto_create_topics_enable: false
+      delete_topic_enable: false
+      log_retention_hours: 168  # 1 week
+      num_network_threads: 8
+      num_io_threads: 16

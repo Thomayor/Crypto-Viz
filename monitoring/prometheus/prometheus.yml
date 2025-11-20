@@ -1,0 +1,96 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'crypto-viz-cluster'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          component: 'monitoring'
+
+  # Node Exporter - System metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+          component: 'monitoring'
+
+  # cAdvisor - Container metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: 'cadvisor'
+          component: 'monitoring'
+
+  # Kafka Exporter - Kafka metrics
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+        labels:
+          service: 'kafka'
+          component: 'streaming'
+
+  # Backend API metrics (disabled - no metrics endpoint implemented)
+  # - job_name: 'backend-api'
+  #   metrics_path: '/metrics'
+  #   static_configs:
+  #     - targets: ['backend:8000']
+  #       labels:
+  #         service: 'backend'
+  #         component: 'api'
+
+  # Kafka JMX Exporter (disabled - using kafka-exporter instead)
+  # - job_name: 'kafka-jmx'
+  #   static_configs:
+  #     - targets: ['kafka:9999']
+  #       labels:
+  #         service: 'kafka-jmx'
+  #         component: 'streaming'
+
+  # Spark Master metrics (disabled - no Prometheus endpoint)
+  # - job_name: 'spark-master'
+  #   metrics_path: '/metrics/prometheus'
+  #   static_configs:
+  #     - targets: ['spark-master:8080']
+  #       labels:
+  #         service: 'spark-master'
+  #         component: 'processing'
+
+  # Docker daemon metrics (disabled - not enabled in Docker Desktop)
+  # - job_name: 'docker'
+  #   static_configs:
+  #     - targets: ['host.docker.internal:9323']
+  #       labels:
+  #         service: 'docker'
+  #         component: 'infrastructure'
+
+  # Ollama metrics (disabled - using Windows Ollama via host.docker.internal)
+  # - job_name: 'ollama'
+  #   metrics_path: '/metrics'
+  #   static_configs:
+  #     - targets: ['ollama:11434']
+  #       labels:
+  #         service: 'ollama'
+  #         component: 'ai'
+  #   scrape_interval: 30s
+  #   scrape_timeout: 10s

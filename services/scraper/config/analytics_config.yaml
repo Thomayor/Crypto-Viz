@@ -1,0 +1,257 @@
+# =====================================
+# CRYPTO VIZ - Analytics Configuration
+# =====================================
+
+# General settings
+app:
+  name: "crypto-viz-analytics"
+  version: "1.0.0"
+  environment: "production"
+
+# Bootstrap Stack Configuration (EPITECH Requirements)
+bootstrap_stack:
+  pandas:
+    chunk_size: 10000
+    memory_limit: "2GB"
+    dtypes_optimization: true
+    
+  duckdb:
+    database_path: "/app/data/crypto_analytics.db"
+    memory_limit: "2GB"
+    threads: 4
+    enable_optimizer: true
+    temp_directory: "/tmp/duckdb"
+    
+  spark:
+    app_name: "CryptoViz-Analytics"
+    master_url: "spark://spark-master:7077"
+    executor_memory: "1g"
+    executor_cores: 1
+    max_cores: 4
+    sql_adaptive_enabled: true
+    sql_adaptive_coalescePartitions_enabled: true
+
+# Ollama AI Configuration
+ollama:
+  url: "http://ollama:11434"
+  model: "llama3.1:8b"
+  timeout: 30
+  temperature: 0.1
+  max_tokens: 100
+  
+  # Sentiment analysis configuration
+  sentiment:
+    batch_size: 10
+    confidence_threshold: 0.6
+    cache_enabled: true
+    cache_ttl: 3600  # 1 hour
+    
+  # Prompts for different analysis types
+  prompts:
+    sentiment: |
+      Analyse le sentiment de ce texte concernant les cryptomonnaies.
+      Réponds UNIQUEMENT avec ce format JSON exact :
+      {"sentiment": "POSITIVE|NEGATIVE|NEUTRAL", "confidence": 0.85, "keywords": ["bitcoin", "bullish"]}
+      
+      Texte à analyser: {text}
+      
+      JSON:
+    
+    trend_analysis: |
+      Analyse cette série de données crypto et identifie les tendances.
+      Format de réponse JSON uniquement :
+      {"trend": "BULLISH|BEARISH|SIDEWAYS", "strength": 0.8, "signals": ["breakout", "volume"]}
+      
+      Données: {data}
+      
+      JSON:
+
+# Analytics processing configuration
+processing:
+  intervals:
+    real_time: 60        # Process every minute
+    batch_analytics: 300 # Process every 5 minutes
+    ml_training: 3600    # Retrain models every hour
+    
+  batch_sizes:
+    sentiment_analysis: 50
+    price_analysis: 1000
+    correlation_analysis: 500
+    
+  # Technical indicators configuration
+  technical_indicators:
+    moving_averages: [5, 10, 20, 50, 100, 200]
+    rsi_period: 14
+    bollinger_bands_period: 20
+    macd_fast: 12
+    macd_slow: 26
+    macd_signal: 9
+    
+  # Correlation analysis
+  correlation:
+    window_size: 100  # Number of data points
+    min_correlation: 0.3
+    update_frequency: 300  # 5 minutes
+
+# Machine Learning configuration
+machine_learning:
+  models:
+    price_prediction:
+      enabled: true
+      algorithm: "linear_regression"
+      features: ["ma_20", "rsi", "volume", "sentiment_score"]
+      train_size: 0.8
+      validation_size: 0.2
+      
+    sentiment_clustering:
+      enabled: true
+      algorithm: "kmeans"
+      n_clusters: 5
+      features: ["sentiment_score", "confidence", "keyword_count"]
+      
+    anomaly_detection:
+      enabled: true
+      algorithm: "isolation_forest"
+      contamination: 0.1
+      features: ["price_change", "volume_change", "sentiment_change"]
+
+# Data pipeline configuration
+pipeline:
+  # Input sources
+  input_topics:
+    - "crypto-prices"
+    - "crypto-news"
+    - "social-posts"
+    
+  # Output destinations
+  output_topics:
+    - "analytics-data"
+    - "alerts"
+    
+  # Processing stages
+  stages:
+    data_cleaning:
+      enabled: true
+      remove_outliers: true
+      fill_missing_values: true
+      normalize_timestamps: true
+      
+    feature_engineering:
+      enabled: true
+      technical_indicators: true
+      sentiment_scores: true
+      time_features: true
+      
+    analytics_computation:
+      enabled: true
+      correlations: true
+      trends: true
+      predictions: true
+
+# Caching and performance
+cache:
+  redis_enabled: false  # Use in-memory cache for now
+  memory_cache:
+    max_size: "512MB"
+    ttl: 1800  # 30 minutes
+    
+  # Cache strategies for different data types
+  strategies:
+    sentiment_results: 3600    # 1 hour
+    technical_indicators: 300  # 5 minutes
+    correlations: 600          # 10 minutes
+    ml_predictions: 1800       # 30 minutes
+
+# Alerting system
+alerts:
+  enabled: true
+  
+  # Price alerts
+  price_alerts:
+    threshold_percent: 5.0  # Alert on 5% price change
+    volume_threshold: 2.0   # Alert on 2x average volume
+    
+  # Sentiment alerts
+  sentiment_alerts:
+    extreme_positive: 0.8
+    extreme_negative: -0.8
+    sudden_change: 0.3      # Alert on 30% sentiment change
+    
+  # Technical alerts
+  technical_alerts:
+    rsi_overbought: 70
+    rsi_oversold: 30
+    bollinger_breakout: true
+    volume_spike: 3.0       # 3x average volume
+
+# Data export and storage
+export:
+  # Parquet export for Spark integration
+  parquet:
+    enabled: true
+    export_interval: 3600   # Export every hour
+    compression: "snappy"
+    partition_by: ["date", "symbol"]
+    
+  # CSV export for external tools
+  csv:
+    enabled: false
+    export_interval: 86400  # Daily export
+    
+  # Database synchronization
+  database_sync:
+    enabled: true
+    sync_interval: 1800     # Sync every 30 minutes
+    tables: ["daily_aggregates", "sentiment_summary"]
+
+# Monitoring and logging
+monitoring:
+  metrics:
+    enabled: true
+    collection_interval: 60
+    retention_days: 7
+    
+  health_checks:
+    ollama_connectivity: true
+    duckdb_performance: true
+    spark_cluster_status: true
+    kafka_lag_monitoring: true
+    
+logging:
+  level: "INFO"
+  format: "json"
+  structured: true
+  
+  # Log specific events
+  events:
+    data_processing: true
+    ml_training: true
+    alert_generation: true
+    error_tracking: true
+
+# Resource management
+resources:
+  memory:
+    max_heap_size: "2GB"
+    gc_frequency: "auto"
+    
+  cpu:
+    max_threads: 8
+    thread_pool_size: 4
+    
+  io:
+    max_concurrent_reads: 10
+    max_concurrent_writes: 5
+    buffer_size: "64KB"
+
+# Development and debugging
+development:
+  debug_mode: false
+  profiling_enabled: false
+  sample_data_mode: false
+  
+  # Test data configuration
+  test_data:
+    generate_mock_data: false
+    mock_data_size: 1000
+    mock_symbols: ["BTC", "ETH", "ADA"]

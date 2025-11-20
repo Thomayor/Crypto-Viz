@@ -1,0 +1,109 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Docker container logs
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project=t-dat-901-nce_10"]
+
+    relabel_configs:
+      # Container name
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+
+      # Container ID
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+
+      # Service name from Docker Compose
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+
+      # Project name
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'project'
+
+      # Container image
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_image']
+        target_label: 'image'
+
+      # Log path
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'stream'
+
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            timestamp: timestamp
+
+      # Parse log level
+      - labels:
+          level:
+
+      # Add timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+
+      # Drop health check logs (optional)
+      - match:
+          selector: '{container=~".*"} |~ "health"'
+          stages:
+            - drop:
+                expression: ".*GET /health.*"
+
+      # Label specific services
+      - match:
+          selector: '{service="backend"}'
+          stages:
+            - json:
+                expressions:
+                  endpoint: endpoint
+                  status: status
+            - labels:
+                endpoint:
+                status:
+
+      # Parse Kafka logs
+      - match:
+          selector: '{service="kafka"}'
+          stages:
+            - regex:
+                expression: '^\[(?P<timestamp>.*?)\] (?P<level>\w+)\s+(?P<message>.*)'
+            - labels:
+                level:
+
+      # Parse Python logs from scrapers/analytics
+      - match:
+          selector: '{service=~"web-scraper|analytics-builder"}'
+          stages:
+            - regex:
+                expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) - (?P<logger>\w+) - (?P<level>\w+) - (?P<message>.*)'
+            - labels:
+                logger:
+                level:
+
+  # System logs (optional, for host logs)
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*.log

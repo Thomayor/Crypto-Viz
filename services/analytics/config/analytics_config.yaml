@@ -1,0 +1,297 @@
+# =====================================
+# CRYPTO VIZ - Analytics Configuration
+# Bootstrap Stack Integration (EPITECH)
+# =====================================
+
+# Global Settings
+analytics:
+  interval_seconds: 60  # Main analytics loop interval
+  batch_interval_seconds: 300  # Batch processing every 5 min
+  ml_retrain_interval_seconds: 3600  # ML retraining every hour
+
+# Bootstrap Stack Configuration (Required by EPITECH)
+bootstrap_stack:
+  # pandas - Data manipulation and preprocessing
+  pandas:
+    chunk_size: 10000  # Process data in 10k row chunks
+    memory_limit_mb: 512
+    optimize_dtypes: true
+    use_arrow: true  # Use PyArrow for faster Parquet I/O
+
+  # DuckDB - Fast analytical queries
+  duckdb:
+    database_path: /app/data/crypto_analytics.db
+    memory_limit: 2GB  # Max memory for queries
+    threads: 4
+    enable_optimization: true
+    temp_directory: /app/data/duckdb_temp
+
+  # Spark - Distributed ML processing
+  spark:
+    master_url: spark://spark-master:7077
+    app_name: crypto-viz-ml-pipeline
+    executor_memory: 512m  # Minimum required by Spark (450MB + overhead)
+    executor_cores: 1      # Reduced to 1 core per executor
+    max_cores: 4
+    driver_memory: 512m    # Minimum required by Spark (450MB + overhead)
+    shuffle_partitions: 4  # Reduced from 10 - fewer partitions for small datasets
+
+# Ollama AI Configuration (Sentiment Analysis)
+ollama:
+  url: "http://ollama:11434"
+  model: "gemma:2b"  # Smaller model (1.7GB) - fits in available RAM
+  timeout: 30
+  temperature: 0.0  # Deterministic for sentiment
+  max_tokens: 150
+
+  # Sentiment analysis configuration
+  sentiment:
+    batch_size: 10
+    confidence_threshold: 0.5  # Lower threshold for llama3.1
+    cache_enabled: true
+    cache_ttl: 3600  # 1 hour
+
+  # Prompts optimized for llama3.1 (shorter, more direct)
+  prompts:
+    sentiment: |
+      Analyze crypto sentiment. Reply ONLY with JSON:
+      {{"sentiment": "POSITIVE|NEGATIVE|NEUTRAL", "confidence": 0.85, "keywords": ["bitcoin"]}}
+
+      Text: {text}
+
+# Data Processing Pipeline
+pipeline:
+  # Data sources
+  sources:
+    postgres:
+      enabled: true
+      min_records: 100  # Minimum records before processing
+
+  # Parquet configuration (interchange format)
+  parquet:
+    output_dir: /app/data/parquet
+    compression: snappy  # Fast compression
+    row_group_size: 10000
+    partitioning:
+      - date  # Partition by date for efficient queries
+      - symbol  # Then by crypto symbol
+
+  # Processing stages
+  stages:
+    - name: data_extraction
+      enabled: true
+      use_pandas: true
+      export_parquet: true
+
+    - name: sql_analytics
+      enabled: true
+      use_duckdb: true
+      input_format: parquet
+
+    - name: ml_processing
+      enabled: true  # ✓ Enabled for ML Analytics page
+      use_spark: true
+      input_format: parquet
+
+# Analytics Modules
+analytics_modules:
+  # Sentiment Analysis
+  sentiment:
+    enabled: true
+    aggregation_windows:
+      - 1h   # Hourly sentiment
+      - 4h   # 4-hour sentiment
+      - 24h  # Daily sentiment
+      - 7d   # Weekly sentiment
+    min_samples: 10
+
+  # Price Analytics
+  price_analytics:
+    enabled: true
+    metrics:
+      - volatility
+      - moving_averages
+      - volume_analysis
+      - price_changes
+    window_sizes:
+      - 15m
+      - 1h
+      - 4h
+      - 24h
+
+  # Correlation Analysis
+  correlation:
+    enabled: true
+    min_correlation: 0.5
+    window_hours: 168  # 7 days
+
+  # Anomaly Detection
+  anomaly_detection:
+    enabled: true
+    method: isolation_forest  # Spark ML
+    contamination: 0.1  # 10% expected anomalies
+    features:
+      - price_change
+      - volume_change
+      - sentiment_change
+    threshold: 0.8  # Anomaly score threshold
+
+# Machine Learning Pipeline (Spark)
+ml_pipeline:
+  # Price Prediction
+  price_prediction:
+    enabled: false  # Disabled for performance - use crypto_metrics instead
+    model_type: linear_regression
+    features:
+      - price_lag_1h
+      - price_lag_4h
+      - price_lag_24h
+      - volume_24h
+      - sentiment_score
+      - volatility
+    target: price_1h_ahead
+    train_test_split: 0.8
+    retrain_threshold_hours: 24
+
+  # Clustering Analysis
+  clustering:
+    enabled: false  # Disabled for performance - heavy shuffle operations
+    algorithm: kmeans
+    n_clusters: 5
+    features:
+      - price_volatility
+      - volume_24h
+      - sentiment_avg
+      - market_cap
+    max_iterations: 100
+
+  # Anomaly Detection (Spark ML)
+  anomaly:
+    enabled: false  # Disabled for performance - use simple z-score in crypto_metrics
+    algorithm: isolation_forest
+    features:
+      - price_zscore
+      - volume_zscore
+      - sentiment_zscore
+    contamination: 0.1
+    num_trees: 100
+
+# DuckDB Queries Configuration
+duckdb_queries:
+  # Aggregations
+  aggregations:
+    price_stats:
+      enabled: true
+      query: |
+        SELECT
+          symbol,
+          date_trunc('hour', timestamp) as hour,
+          AVG(price) as avg_price,
+          MAX(price) as max_price,
+          MIN(price) as min_price,
+          STDDEV(price) as volatility,
+          COUNT(*) as sample_count
+        FROM crypto_prices
+        WHERE timestamp >= NOW() - INTERVAL '24 hours'
+        GROUP BY symbol, hour
+        ORDER BY hour DESC
+
+    sentiment_aggregation:
+      enabled: true
+      query: |
+        SELECT
+          symbol,
+          date_trunc('hour', calculated_at) as hour,
+          AVG(CAST(metadata->>'sentiment_score' AS FLOAT)) as avg_sentiment,
+          COUNT(*) as news_count
+        FROM crypto_news
+        WHERE calculated_at >= NOW() - INTERVAL '7 days'
+          AND mentioned_coins IS NOT NULL
+        GROUP BY symbol, hour
+
+  # Analytics queries
+  analytics:
+    price_correlation:
+      enabled: true
+      query: |
+        SELECT
+          a.symbol as symbol_a,
+          b.symbol as symbol_b,
+          CORR(a.price, b.price) as correlation
+        FROM crypto_prices a
+        JOIN crypto_prices b ON a.timestamp = b.timestamp
+        WHERE a.timestamp >= NOW() - INTERVAL '7 days'
+          AND a.symbol < b.symbol
+        GROUP BY a.symbol, b.symbol
+        HAVING CORR(a.price, b.price) IS NOT NULL
+        ORDER BY ABS(correlation) DESC
+
+# Performance Metrics
+metrics:
+  collection:
+    enabled: true
+    interval_seconds: 30
+
+  tracked_metrics:
+    - pipeline_execution_time
+    - pandas_processing_time
+    - duckdb_query_time
+    - spark_job_time
+    - parquet_read_time
+    - parquet_write_time
+    - records_processed
+    - memory_usage
+    - cpu_usage
+
+  export:
+    postgres: true
+    log_file: /app/data/metrics.log
+
+# Data Quality
+data_quality:
+  validation:
+    enabled: true
+    rules:
+      - name: price_sanity
+        field: price
+        type: range
+        min: 0.0001
+        max: 1000000
+
+      - name: timestamp_recent
+        field: timestamp
+        type: age
+        max_age_hours: 24
+
+      - name: required_fields
+        fields:
+          - symbol
+          - price
+          - timestamp
+        type: not_null
+
+  handling:
+    invalid_records: log  # Options: log, drop, quarantine
+    null_strategy: interpolate  # Options: drop, interpolate, forward_fill
+
+# Cache Configuration
+cache:
+  enabled: true
+  ttl_seconds: 300  # 5 minutes
+  max_size_mb: 256
+
+# Logging
+logging:
+  level: DEBUG  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  destinations:
+    console: true
+    file:
+      enabled: true
+      path: /app/data/analytics.log
+      max_size_mb: 100
+      backup_count: 5
+    postgres:
+      enabled: true
+      table: system_logs

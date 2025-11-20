@@ -1,0 +1,154 @@
+# =====================================
+# CRYPTO VIZ - Scraper Configuration
+# =====================================
+
+# General settings
+app:
+  name: "crypto-viz-scraper"
+  version: "1.0.0"
+  environment: "production"  # development, staging, production
+
+# Scraping intervals (in seconds)
+intervals:
+  price_scraping: 30        # Every 30 seconds
+  news_scraping: 300        # Every 5 minutes
+  social_scraping: 600      # Every 10 minutes
+  market_data: 60           # Every minute
+
+# Cryptocurrency symbols to monitor
+crypto_symbols:
+  primary:
+    - "bitcoin"
+    - "ethereum" 
+    - "cardano"
+    - "solana"
+    - "polkadot"
+  secondary:
+    - "chainlink"
+    - "litecoin"
+    - "ripple"
+    - "avalanche-2"
+    - "polygon"
+    - "uniswap"
+    - "aave"
+
+# Data sources configuration
+data_sources:
+  coingecko:
+    enabled: true
+    base_url: "https://api.coingecko.com/api/v3"
+    rate_limit: 50  # requests per minute for free tier
+    timeout: 10
+    retry_count: 3
+    endpoints:
+      prices: "/simple/price"
+      market_data: "/coins/markets"
+      trending: "/search/trending"
+  
+  newsapi:
+    enabled: true
+    base_url: "https://newsapi.org/v2"
+    rate_limit: 1000  # requests per day for free tier
+    timeout: 15
+    retry_count: 3
+    sources:
+      - "crypto-coins-news"
+      - "the-block"
+      - "coindesk"
+    keywords:
+      - "bitcoin"
+      - "ethereum"
+      - "cryptocurrency"
+      - "blockchain"
+      - "DeFi"
+      - "NFT"
+  
+  reddit:
+    enabled: false  # Requires API keys
+    subreddits:
+      - "cryptocurrency"
+      - "bitcoin"
+      - "ethereum"
+      - "defi"
+      - "cryptomarkets"
+    post_limit: 25
+    
+  twitter:
+    enabled: false  # Requires API keys
+    hashtags:
+      - "#bitcoin"
+      - "#ethereum"
+      - "#crypto"
+      - "#blockchain"
+    tweet_count: 100
+
+# Kafka configuration
+kafka:
+  topics:
+    prices: "crypto-prices"
+    news: "crypto-news"
+    social: "social-posts"
+    market_data: "analytics-data"
+  
+  producer_config:
+    batch_size: 16384
+    linger_ms: 10
+    compression_type: "gzip"
+    retries: 3
+    acks: 1
+
+# Rate limiting and throttling
+rate_limiting:
+  requests_per_minute: 60
+  burst_size: 10
+  backoff_factor: 2
+  max_backoff: 60
+
+# Error handling
+error_handling:
+  max_retries: 3
+  retry_delay: 5  # seconds
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout: 300  # 5 minutes
+    
+# Logging configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "json"
+  file_rotation:
+    max_size: "10MB"
+    backup_count: 5
+  
+# Health check configuration
+health_check:
+  enabled: true
+  port: 8000
+  endpoint: "/health"
+  
+# Data validation
+validation:
+  price_bounds:
+    min_price: 0.000001
+    max_price: 1000000
+    max_change_percent: 50  # Flag unusual price changes
+  
+  news_filters:
+    min_title_length: 10
+    max_title_length: 200
+    spam_keywords:
+      - "SCAM"
+      - "FREE"
+      - "URGENT"
+      - "PUMP"
+
+# Storage settings
+storage:
+  local_cache:
+    enabled: true
+    ttl: 300  # 5 minutes
+    max_size: "100MB"
+  
+  data_retention:
+    raw_data: 86400  # 24 hours in seconds
+    processed_data: 604800  # 7 days

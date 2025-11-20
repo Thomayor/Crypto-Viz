@@ -1,0 +1,8 @@
+  zookeeper:
+    image: wurstmeister/zookeeper:latest
+    container_name: crypto-viz-zookeeper
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    networks:
+      - crypto-viz-network
