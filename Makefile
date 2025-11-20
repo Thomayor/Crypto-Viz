@@ -264,3 +264,37 @@ version: ## Show version information
 			echo "$$service: $$image"; \
 		fi; \
 	done
+
+##@ Production Deployment
+deploy: ## Deploy to production VM (requires SSH access)
+	@echo -e "$(BLUE)Deploying to production VM...$(NC)"
+	@chmod +x scripts/deploy-to-vm.sh
+	@./scripts/deploy-to-vm.sh
+
+deploy-check: ## Check production deployment status
+	@echo -e "$(BLUE)Checking production VM status...$(NC)"
+	@ssh ubuntu@84.235.229.76 'cd ~/crypto-viz && docker-compose ps'
+
+deploy-logs: ## Show production logs
+	@echo -e "$(BLUE)Fetching production logs...$(NC)"
+	@ssh ubuntu@84.235.229.76 'cd ~/crypto-viz && docker-compose logs --tail=100'
+
+deploy-restart: ## Restart production services
+	@echo -e "$(BLUE)Restarting production services...$(NC)"
+	@ssh ubuntu@84.235.229.76 'cd ~/crypto-viz && docker-compose restart'
+
+deploy-down: ## Stop production services
+	@echo -e "$(YELLOW)Stopping production services...$(NC)"
+	@ssh ubuntu@84.235.229.76 'cd ~/crypto-viz && docker-compose down'
+
+deploy-up: ## Start production services
+	@echo -e "$(BLUE)Starting production services...$(NC)"
+	@ssh ubuntu@84.235.229.76 'cd ~/crypto-viz && docker-compose up -d'
+
+prod-urls: ## Show production URLs
+	@echo -e "$(BLUE)CRYPTO VIZ Production URLs:$(NC)"
+	@echo "📊 Frontend:       http://84.235.229.76:3000"
+	@echo "🔧 Backend API:    http://84.235.229.76:8000"
+	@echo "📈 API Docs:       http://84.235.229.76:8000/docs"
+	@echo "🔍 Kafka UI:       http://84.235.229.76:8085"
+	@echo "⚡ Spark UI:       http://84.235.229.76:8082"
