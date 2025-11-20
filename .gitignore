@@ -1,1 +1,60 @@
+# Environment variables (secrets)
 .env
+.env.local
+.env.*.local
+.env.production
+
+# Production environment (contains real API keys - DO NOT COMMIT)
+# Use .env.production.example as template
+
+# Docker volumes
+postgres_data/
+kafka_data/
+zookeeper_data/
+ollama_data/
+redis_data/
+spark_data/
+duckdb_data/
+shared_data/
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Node
+node_modules/
+dist/
+.npm
+.eslintcache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Certificates
+*.pem
+*.key
+*.crt
