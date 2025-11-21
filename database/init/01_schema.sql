@@ -30,14 +30,18 @@ CREATE TABLE IF NOT EXISTS public.crypto_prices (
     symbol VARCHAR(20) NOT NULL,
     name VARCHAR(100),
     price DECIMAL(20,8) NOT NULL,
-    volume_24h DECIMAL(20,8),
-    market_cap DECIMAL(20,8),
+    volume_24h DECIMAL(30,2),
+    market_cap DECIMAL(30,2),
     percent_change_1h DECIMAL(10,4),
     percent_change_24h DECIMAL(10,4),
     percent_change_7d DECIMAL(10,4),
+    circulating_supply DECIMAL(30,2),
+    total_supply DECIMAL(30,2),
+    max_supply DECIMAL(30,2),
     rank INTEGER,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    source VARCHAR(50) DEFAULT 'coinmarketcap'
+    source VARCHAR(50) DEFAULT 'coinmarketcap',
+    UNIQUE(symbol, timestamp)
 );
 
 -- Table for storing crypto news data (scraped)
@@ -276,6 +280,9 @@ SELECT DISTINCT ON (symbol)
     percent_change_1h,
     percent_change_24h,
     percent_change_7d,
+    circulating_supply,
+    total_supply,
+    max_supply,
     rank,
     timestamp,
     source

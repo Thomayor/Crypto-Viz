@@ -140,10 +140,11 @@ make clean-all        # Complete cleanup (⚠️ DATA LOSS)
 
 **Database**:
 - `database/init/01_schema.sql` - **Auto-applied** PostgreSQL schema (executed on first startup)
-- `database/migrations/` - Historical migrations (now integrated into init schema)
+  - Includes: `analysis_method`, `confidence_score` (crypto_news), `circulating_supply`, `total_supply`, `max_supply` (crypto_prices)
+- `database/migrations/` - Historical migrations (now integrated into init schema, **no longer auto-executed**)
 - `database/schema.sql` - Reference schema documentation
 
-**Important**: Database schema is automatically initialized when PostgreSQL starts. No manual migration needed!
+**Important**: Database schema is automatically initialized when PostgreSQL starts. No manual migration needed! The old migration system (`migrate_db.py`) has been disabled to prevent conflicts with auto-initialization.
 
 ## Critical Architectural Patterns
 

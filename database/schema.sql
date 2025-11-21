@@ -27,14 +27,21 @@ CREATE TABLE IF NOT EXISTS public.cryptocurrencies (
 -- Table for storing real-time crypto prices
 CREATE TABLE IF NOT EXISTS public.crypto_prices (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    cryptocurrency_id UUID REFERENCES public.cryptocurrencies(id) ON DELETE CASCADE,
+    symbol VARCHAR(20) NOT NULL,
+    name VARCHAR(100),
     price DECIMAL(20,8) NOT NULL,
-    volume_24h DECIMAL(20,8),
-    market_cap DECIMAL(20,8),
-    price_change_24h DECIMAL(10,4),
-    price_change_percentage_24h DECIMAL(10,4),
+    volume_24h DECIMAL(30,2),
+    market_cap DECIMAL(30,2),
+    percent_change_1h DECIMAL(10,4),
+    percent_change_24h DECIMAL(10,4),
+    percent_change_7d DECIMAL(10,4),
+    circulating_supply DECIMAL(30,2),
+    total_supply DECIMAL(30,2),
+    max_supply DECIMAL(30,2),
+    rank INTEGER,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    source VARCHAR(50) DEFAULT 'coingecko'
+    source VARCHAR(50) DEFAULT 'coinmarketcap',
+    UNIQUE(symbol, timestamp)
 );
 
 -- Table for storing crypto news data (scraped)
