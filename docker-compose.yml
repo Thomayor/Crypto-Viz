@@ -240,9 +240,12 @@ services:
     container_name: crypto-viz-analytics-builder
     restart: unless-stopped
     depends_on:
-      - kafka
-      - spark-master
-      - postgres
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      spark-master:
+        condition: service_started
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPARK_MASTER_URL=spark://spark-master:7077
@@ -271,9 +274,12 @@ services:
     ports:
       - "8000:8000"  # Port 8000 pour l'API backend
     depends_on:
-      - kafka
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - POSTGRES_HOST=postgres

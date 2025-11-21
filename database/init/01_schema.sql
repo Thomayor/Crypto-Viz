@@ -315,3 +315,23 @@ INSERT INTO public.api_sources (source_name, base_url, api_key_required, rate_li
 ('NewsAPI', 'https://newsapi.org/v2', true, 1000),
 ('CryptoPanic', 'https://cryptopanic.com/api/v1', true, 200)
 ON CONFLICT (source_name) DO NOTHING;
+
+-- =====================================================
+-- SYSTEM LOGS TABLE
+-- =====================================================
+
+-- Table for storing system logs from all services
+CREATE TABLE IF NOT EXISTS public.system_logs (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    service VARCHAR(100) NOT NULL,
+    level VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
+    metadata JSONB,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index for faster log queries
+CREATE INDEX IF NOT EXISTS idx_system_logs_service ON public.system_logs(service);
+CREATE INDEX IF NOT EXISTS idx_system_logs_level ON public.system_logs(level);
+CREATE INDEX IF NOT EXISTS idx_system_logs_timestamp ON public.system_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_system_logs_metadata ON public.system_logs USING GIN(metadata);

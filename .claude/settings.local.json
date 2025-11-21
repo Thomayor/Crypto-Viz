@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(timeout 60 bash:*)"
+      "Bash(chmod:*)",
+      "Bash(bash:*)",
+      "Bash(c:/Users/fourq/Documents/CRYPTO_VIZ/backend/routers/analytics_temp.py)",
+      "Bash(docker-compose stop:*)",
+      "Bash(docker-compose rm:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker ps:*)"
     ],
     "deny": [],
     "ask": []

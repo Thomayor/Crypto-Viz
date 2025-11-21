@@ -54,7 +54,7 @@
         </StatsCard>
 
         <StatsCard
-          label="Fear & Greed Index"
+          label="Sentiment Analysis"
           :value="fearGreedIndex.toFixed(0)"
           :change="2.1"
           :icon="FaceSmileIcon"
@@ -146,6 +146,26 @@
             No sentiment data available
           </div>
         </div>
+      </div>
+
+      <!-- ML Price Predictions Component -->
+      <div class="glass-card p-6 mb-8">
+        <PredictionChart />
+      </div>
+
+      <!-- Correlation Matrix Component -->
+      <div class="glass-card p-6 mb-8">
+        <CorrelationMatrix />
+      </div>
+
+      <!-- Clustering Visualization Component -->
+      <div class="glass-card p-6 mb-8">
+        <ClusteringViz />
+      </div>
+
+      <!-- ML Anomaly Alerts Component (replaces old anomalies section) -->
+      <div class="mb-8">
+        <AnomalyAlerts />
       </div>
 
       <!-- Anomalies Section -->
@@ -255,6 +275,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAnalyticsStore } from '@/stores/analytics'
+import { useMLStore } from '@/stores/ml'
 import { useCryptoStore } from '@/stores/crypto'
 import { useFormatting } from '@/composables/useFormatting'
 import { usePolling } from '@/composables/usePolling'
@@ -264,6 +285,10 @@ import DataTable from '@/components/ui/DataTable.vue'
 import ApexLineChart from '@/components/charts/ApexLineChart.vue'
 import FearGreedGauge from '@/components/charts/FearGreedGauge.vue'
 import SentimentMethodBadge from '@/components/SentimentMethodBadge.vue'
+import ClusteringViz from '@/components/ml/ClusteringViz.vue'
+import PredictionChart from '@/components/ml/PredictionChart.vue'
+import CorrelationMatrix from '@/components/ml/CorrelationMatrix.vue'
+import AnomalyAlerts from '@/components/ml/AnomalyAlerts.vue'
 import {
   ChartBarIcon,
   ExclamationTriangleIcon,
@@ -272,6 +297,7 @@ import {
 } from '@heroicons/vue/24/outline'
 
 const analyticsStore = useAnalyticsStore()
+const mlStore = useMLStore()
 const cryptoStore = useCryptoStore()
 const { formatPrice, formatDate } = useFormatting()
 

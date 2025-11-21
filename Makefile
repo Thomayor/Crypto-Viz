@@ -52,6 +52,8 @@ build: ## Build all Docker images
 start: ## Start all services
 	@echo -e "$(BLUE)Starting CRYPTO VIZ services...$(NC)"
 	@./scripts/start.sh
+	@echo -e "$(BLUE)Applying ML Analytics schema...$(NC)"
+	@bash ./scripts/apply_ml_schema.sh || true
 
 stop: ## Stop all services
 	@echo -e "$(BLUE)Stopping CRYPTO VIZ services...$(NC)"

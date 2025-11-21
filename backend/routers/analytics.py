@@ -50,25 +50,26 @@ async def get_all_predictions(
     try:
         pg_reader = get_pg_reader()
         query = f"""
-            SELECT coin_id, predicted_price, confidence, model_type, timestamp
+            SELECT symbol, predicted_value, confidence, prediction_type, predicted_at
             FROM ml_predictions
-            ORDER BY timestamp DESC
+            WHERE valid_until > NOW()
+            ORDER BY predicted_at DESC
             LIMIT {limit}
         """
         results = pg_reader.query(query)
 
-        # Group by coin_id
+        # Group by symbol
         predictions_by_coin = {}
         for row in results:
             coin = row[0]
             if coin not in predictions_by_coin:
                 predictions_by_coin[coin] = []
             predictions_by_coin[coin].append({
-                "coin_id": row[0],
-                "predicted_price": float(row[1]) if row[1] else 0,
+                "symbol": row[0],
+                "predicted_value": float(row[1]) if row[1] else 0,
                 "confidence": float(row[2]) if row[2] else 0,
-                "model_type": row[3] or "LinearRegression",
-                "timestamp": row[4].isoformat() if row[4] else datetime.now().isoformat()
+                "prediction_type": row[3] or "price",
+                "predicted_at": row[4].isoformat() if row[4] else datetime.now().isoformat()
             })
 
         return predictions_by_coin
@@ -88,10 +89,10 @@ async def get_all_anomalies(
 
         severity_filter = f"AND severity = '{severity}'" if severity else ""
         query = f"""
-            SELECT id, coin_id, anomaly_type, severity, description, anomaly_score, timestamp
+            SELECT id, symbol, anomaly_type, severity, description, anomaly_score, detected_at
             FROM anomalies
-            WHERE 1=1 {severity_filter}
-            ORDER BY timestamp DESC
+            WHERE is_resolved = FALSE {severity_filter}
+            ORDER BY detected_at DESC
             LIMIT {limit}
         """
 
@@ -101,7 +102,7 @@ async def get_all_anomalies(
         for row in results:
             anomalies.append(Anomaly(
                 id=str(row[0]),
-                coin_id=row[1],
+                coin_id=row[1],  # Using symbol as coin_id for backwards compatibility
                 anomaly_type=row[2] or "unknown",
                 severity=row[3] or "medium",
                 description=row[4] or "Anomaly detected",
@@ -212,6 +213,384 @@ async def get_all_sentiment(
         logger.error(f"Error fetching sentiment data: {e}")
         return []
 
+
+# ========================================
+# ML ANALYTICS ENDPOINTS
+# (Defined BEFORE generic /{symbol} routes to ensure proper routing)
+# ========================================
+
+# Import ML services
+from services.ml import (
+    get_clustering_service,
+    get_prediction_service,
+    get_correlation_service,
+    get_anomaly_detector
+)
+
+
+@router.get("/ml/clusters", summary="Get all cluster assignments")
+async def get_all_clusters():
+    """
+    Get all current cryptocurrency cluster assignments
+
+    Returns:
+    - List of all clusters with assignments
+    """
+    try:
+        clustering_service = get_clustering_service()
+        return clustering_service.get_all_clusters()
+    except Exception as e:
+        logger.error(f"Error getting all clusters: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/clusters/statistics", summary="Get cluster statistics")
+async def get_cluster_statistics():
+    """
+    Get overall clustering statistics
+
+    Returns:
+    - Total cryptos clustered
+    - Number of clusters
+    - Overall silhouette score
+    - Cluster distribution
+    """
+    try:
+        clustering_service = get_clustering_service()
+        return clustering_service.get_cluster_statistics()
+    except Exception as e:
+        logger.error(f"Error getting cluster statistics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/clusters/{cluster_id}", summary="Get cluster insights")
+async def get_cluster_insights(cluster_id: int):
+    """
+    Get detailed insights for a specific cluster
+
+    - **cluster_id**: Cluster ID to analyze
+
+    Returns:
+    - Cluster label and characteristics
+    - List of cryptocurrencies in cluster
+    - Average features
+    """
+    try:
+        clustering_service = get_clustering_service()
+        return clustering_service.get_cluster_insights(cluster_id)
+    except Exception as e:
+        logger.error(f"Error getting cluster insights for {cluster_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/similar/{symbol}", summary="Get similar cryptocurrencies")
+async def get_similar_cryptos(symbol: str, limit: int = 5):
+    """
+    Get cryptocurrencies similar to the given symbol (same cluster)
+
+    - **symbol**: Cryptocurrency symbol
+    - **limit**: Maximum number of similar cryptos to return (default: 5)
+
+    Returns:
+    - List of similar cryptocurrencies with cluster info
+    """
+    try:
+        clustering_service = get_clustering_service()
+        return clustering_service.get_similar_cryptos(symbol, limit)
+    except Exception as e:
+        logger.error(f"Error getting similar cryptos for {symbol}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/predictions", summary="Get ML predictions")
+async def get_ml_predictions(
+    symbol: Optional[str] = None,
+    prediction_type: str = "price",
+    hours_ahead: Optional[int] = None,
+    use_cache: bool = True
+):
+    """
+    Get ML predictions with caching
+
+    - **symbol**: Cryptocurrency symbol (optional, None for all)
+    - **prediction_type**: Type of prediction ('price', 'volatility', 'trend')
+    - **hours_ahead**: Filter by prediction horizon (optional)
+    - **use_cache**: Use cached predictions (default: true)
+
+    Returns:
+    - List of ML predictions with confidence scores
+    """
+    try:
+        prediction_service = get_prediction_service()
+        return prediction_service.get_predictions(
+            symbol=symbol,
+            prediction_type=prediction_type,
+            hours_ahead=hours_ahead,
+            use_cache=use_cache
+        )
+    except Exception as e:
+        logger.error(f"Error getting predictions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/predictions/accuracy", summary="Get prediction accuracy metrics")
+async def get_prediction_accuracy(
+    symbol: Optional[str] = None,
+    days: int = 7
+):
+    """
+    Get historical prediction accuracy metrics
+
+    - **symbol**: Cryptocurrency symbol (optional, None for all)
+    - **days**: Number of days to analyze (default: 7)
+
+    Returns:
+    - Accuracy metrics (avg confidence, RMSE, R² score)
+    """
+    try:
+        prediction_service = get_prediction_service()
+        return prediction_service.get_prediction_accuracy(symbol, days)
+    except Exception as e:
+        logger.error(f"Error getting prediction accuracy: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/ml/predictions/invalidate", summary="Invalidate prediction cache")
+async def invalidate_prediction_cache(symbol: Optional[str] = None):
+    """
+    Invalidate prediction cache for a symbol or all symbols
+
+    - **symbol**: Symbol to invalidate (optional, None to clear all)
+
+    Returns:
+    - Success message
+    """
+    try:
+        prediction_service = get_prediction_service()
+        prediction_service.invalidate_predictions(symbol)
+        return {"message": f"Cache invalidated for {symbol if symbol else 'all symbols'}"}
+    except Exception as e:
+        logger.error(f"Error invalidating prediction cache: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/correlations/matrix", summary="Get correlation matrix")
+async def get_correlation_matrix(
+    symbols: Optional[str] = None,
+    time_window: str = "7d",
+    min_coefficient: Optional[float] = None
+):
+    """
+    Get correlation matrix for specified symbols
+
+    - **symbols**: Comma-separated list of symbols (optional, None for all)
+    - **time_window**: Time window ('1d', '7d', '30d', default: '7d')
+    - **min_coefficient**: Minimum correlation coefficient to include (optional)
+
+    Returns:
+    - Correlation matrix data
+    """
+    try:
+        correlation_service = get_correlation_service()
+        symbol_list = symbols.split(',') if symbols else None
+        return correlation_service.get_correlation_matrix(
+            symbols=symbol_list,
+            time_window=time_window,
+            min_coefficient=min_coefficient
+        )
+    except Exception as e:
+        logger.error(f"Error getting correlation matrix: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/correlations/{symbol}", summary="Get top correlations for symbol")
+async def get_top_correlations(
+    symbol: str,
+    limit: int = 10,
+    time_window: str = "7d",
+    positive_only: bool = False
+):
+    """
+    Get top correlations for a specific symbol
+
+    - **symbol**: Cryptocurrency symbol
+    - **limit**: Maximum number of correlations (default: 10)
+    - **time_window**: Time window ('1d', '7d', '30d', default: '7d')
+    - **positive_only**: Only return positive correlations (default: false)
+
+    Returns:
+    - List of top correlated pairs
+    """
+    try:
+        correlation_service = get_correlation_service()
+        return correlation_service.get_top_correlations(
+            symbol=symbol,
+            limit=limit,
+            time_window=time_window,
+            positive_only=positive_only
+        )
+    except Exception as e:
+        logger.error(f"Error getting top correlations for {symbol}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/correlations/{symbol}/inverse", summary="Get inverse correlations for hedging")
+async def get_inverse_correlations(
+    symbol: str,
+    limit: int = 10,
+    time_window: str = "7d",
+    min_coefficient: float = -0.5
+):
+    """
+    Get inverse (negative) correlations for hedging opportunities
+
+    - **symbol**: Cryptocurrency symbol
+    - **limit**: Maximum number of correlations (default: 10)
+    - **time_window**: Time window ('1d', '7d', '30d', default: '7d')
+    - **min_coefficient**: Minimum negative correlation (default: -0.5)
+
+    Returns:
+    - List of inversely correlated pairs for hedging
+    """
+    try:
+        correlation_service = get_correlation_service()
+        return correlation_service.get_inverse_correlations(
+            symbol=symbol,
+            limit=limit,
+            time_window=time_window,
+            min_coefficient=min_coefficient
+        )
+    except Exception as e:
+        logger.error(f"Error getting inverse correlations for {symbol}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/correlations/statistics", summary="Get correlation statistics")
+async def get_correlation_statistics(time_window: str = "7d"):
+    """
+    Get overall correlation statistics
+
+    - **time_window**: Time window ('1d', '7d', '30d', default: '7d')
+
+    Returns:
+    - Overall correlation statistics by strength
+    """
+    try:
+        correlation_service = get_correlation_service()
+        return correlation_service.get_correlation_statistics(time_window)
+    except Exception as e:
+        logger.error(f"Error getting correlation statistics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/anomalies", summary="Get active anomalies")
+async def get_active_anomalies_ml(
+    severity: Optional[str] = None,
+    symbol: Optional[str] = None,
+    limit: int = 50
+):
+    """
+    Get currently active (unresolved) anomalies
+
+    - **severity**: Filter by severity ('low', 'medium', 'high', 'critical')
+    - **symbol**: Filter by cryptocurrency symbol
+    - **limit**: Maximum number of anomalies (default: 50)
+
+    Returns:
+    - List of active anomalies
+    """
+    try:
+        anomaly_detector = get_anomaly_detector()
+        return anomaly_detector.get_active_anomalies(
+            severity_filter=severity,
+            symbol=symbol,
+            limit=limit
+        )
+    except Exception as e:
+        logger.error(f"Error getting active anomalies: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/anomalies/history", summary="Get anomaly history")
+async def get_anomaly_history(
+    symbol: Optional[str] = None,
+    days: int = 7,
+    include_resolved: bool = True
+):
+    """
+    Get historical anomalies
+
+    - **symbol**: Filter by cryptocurrency symbol
+    - **days**: Number of days to look back (default: 7)
+    - **include_resolved**: Include resolved anomalies (default: true)
+
+    Returns:
+    - List of historical anomalies
+    """
+    try:
+        anomaly_detector = get_anomaly_detector()
+        return anomaly_detector.get_anomaly_history(
+            symbol=symbol,
+            days=days,
+            include_resolved=include_resolved
+        )
+    except Exception as e:
+        logger.error(f"Error getting anomaly history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ml/anomalies/statistics", summary="Get anomaly statistics")
+async def get_anomaly_statistics(days: int = 30):
+    """
+    Get anomaly detection statistics
+
+    - **days**: Number of days to analyze (default: 30)
+
+    Returns:
+    - Comprehensive anomaly statistics
+    """
+    try:
+        anomaly_detector = get_anomaly_detector()
+        return anomaly_detector.get_anomaly_statistics(days)
+    except Exception as e:
+        logger.error(f"Error getting anomaly statistics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/ml/anomalies/{anomaly_id}/resolve", summary="Resolve an anomaly")
+async def resolve_anomaly(
+    anomaly_id: str,
+    resolution_notes: Optional[str] = None
+):
+    """
+    Mark an anomaly as resolved
+
+    - **anomaly_id**: UUID of the anomaly
+    - **resolution_notes**: Optional notes about the resolution
+
+    Returns:
+    - Success message
+    """
+    try:
+        anomaly_detector = get_anomaly_detector()
+        success = anomaly_detector.resolve_anomaly(anomaly_id, resolution_notes)
+
+        if success:
+            return {"message": f"Anomaly {anomaly_id} resolved successfully"}
+        else:
+            raise HTTPException(status_code=404, detail=f"Anomaly {anomaly_id} not found")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resolving anomaly {anomaly_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# GENERIC SYMBOL-BASED ENDPOINTS
+# (Defined AFTER /ml/* routes to avoid conflicts)
+# ========================================
 
 @router.get("/{symbol}", summary="Get analytics data for cryptocurrency")
 async def get_analytics_by_symbol(
