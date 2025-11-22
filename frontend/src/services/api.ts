@@ -135,12 +135,21 @@ class ApiService {
 
   // ML Predictions
   async getPredictions(symbol?: string): Promise<Record<string, MLPrediction[]>> {
-    if (!symbol) {
-      // Get predictions for all coins
-      return this.request<Record<string, MLPrediction[]>>(`/api/analytics/all/predictions`)
-    }
-    const predictions = await this.request<MLPrediction[]>(`/api/analytics/${symbol}/predictions`)
-    return { [symbol]: predictions }
+    // Always fetch all predictions since per-symbol endpoint doesn't exist
+    return this.request<Record<string, MLPrediction[]>>(`/api/analytics/all/predictions`)
+  }
+
+  // Generic GET method for flexibility
+  async get<T = any>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint)
+  }
+
+  // Generic POST method for flexibility
+  async post<T = any>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   }
 }
 

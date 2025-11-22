@@ -105,65 +105,120 @@ log "Building custom images..."
 docker-compose build --parallel
 
 # Start infrastructure services first
-log "Starting infrastructure services (Kafka, Zookeeper, Ollama, Spark)..."
-docker-compose up -d zookeeper kafka ollama spark-master spark-worker-1 spark-worker-2
+log "Starting infrastructure services (PostgreSQL, Redis, Zookeeper, Kafka, Ollama, Spark)..."
+docker-compose up -d postgres redis zookeeper kafka ollama spark-master spark-worker-1 spark-worker-2
 
 # Wait for infrastructure to be ready
 log "Waiting for infrastructure services to be ready..."
 
-# Wait for Kafka
-log "Waiting for Kafka..."
+# Wait for PostgreSQL
+log "Waiting for PostgreSQL..."
 for i in {1..30}; do
-    if docker-compose exec -T kafka kafka-broker-api-versions --bootstrap-server localhost:9092 &>/dev/null; then
+    if docker exec crypto-viz-postgres pg_isready -U crypto_viz -d crypto_analytics &>/dev/null; then
+        success "PostgreSQL is ready!"
+        break
+    fi
+
+    if [ $i -eq 30 ]; then
+        warning "PostgreSQL took longer than expected, continuing anyway..."
+        break
+    fi
+
+    echo -n "."
+    sleep 2
+done
+
+# Wait for Redis
+log "Waiting for Redis..."
+for i in {1..15}; do
+    if docker exec crypto-viz-redis redis-cli ping &>/dev/null; then
+        success "Redis is ready!"
+        break
+    fi
+
+    if [ $i -eq 15 ]; then
+        warning "Redis took longer than expected, continuing anyway..."
+        break
+    fi
+
+    echo -n "."
+    sleep 2
+done
+
+# Wait for Zookeeper first (Kafka depends on it)
+log "Waiting for Zookeeper..."
+for i in {1..60}; do
+    if echo stat | docker exec -i crypto-viz-zookeeper nc localhost 2181 | grep -q "Mode" 2>/dev/null; then
+        success "Zookeeper is ready!"
+        break
+    fi
+
+    if [ $i -eq 60 ]; then
+        warning "Zookeeper took longer than expected, continuing anyway..."
+        break
+    fi
+
+    echo -n "."
+    sleep 3
+done
+
+# Wait for Kafka (needs more time after Zookeeper)
+log "Waiting for Kafka..."
+for i in {1..60}; do
+    if docker logs crypto-viz-kafka 2>&1 | grep -q "started (kafka.server.KafkaServer)" 2>/dev/null; then
         success "Kafka is ready!"
         break
     fi
-    
-    if [ $i -eq 30 ]; then
-        error "Kafka failed to start within timeout"
-        exit 1
+
+    if [ $i -eq 60 ]; then
+        warning "Kafka took longer than expected, continuing anyway..."
+        break
     fi
-    
+
     echo -n "."
-    sleep 10
+    sleep 5
 done
 
-# Wait for Ollama
+# Wait for Ollama (optional service - don't fail if timeout)
 log "Waiting for Ollama..."
-for i in {1..20}; do
+for i in {1..30}; do
     if curl -s http://localhost:11434/api/tags &>/dev/null; then
         success "Ollama is ready!"
         break
     fi
-    
-    if [ $i -eq 20 ]; then
-        error "Ollama failed to start within timeout"
-        exit 1
+
+    if [ $i -eq 30 ]; then
+        warning "Ollama took longer than expected, continuing anyway..."
+        warning "Sentiment analysis may not work until Ollama is ready"
+        break
     fi
-    
+
     echo -n "."
-    sleep 15
+    sleep 10
 done
 
-# Initialize Ollama model
-log "Initializing Ollama model (this may take a while)..."
-docker exec crypto-viz-ollama ollama pull llama3.1:8b 2>/dev/null || true
+# Initialize Ollama model if Ollama is running
+if curl -s http://localhost:11434/api/tags &>/dev/null; then
+    log "Initializing Ollama model (this may take a while)..."
+    docker exec crypto-viz-ollama ollama pull gemma:2b 2>/dev/null || true
+fi
 
 # Wait for Spark
 log "Waiting for Spark Master..."
-for i in {1..15}; do
-    if curl -s http://localhost:8082 | grep -q "Spark Master" 2>/dev/null; then
+for i in {1..30}; do
+    if curl -s http://localhost:8082 &>/dev/null; then
         success "Spark Master is ready!"
         break
     fi
-    
-    if [ $i -eq 15 ]; then
-        error "Spark Master failed to start within timeout"
-        exit 1
+
+    if [ $i -eq 30 ]; then
+        warning "Spark Master took longer than expected, continuing anyway..."
+        warning "ML pipeline may not work until Spark is ready"
+        break
     fi
-    
+
     echo -n "."
-    sleep 10
+    sleep 5
 done
 
 # Start application services
@@ -172,19 +227,20 @@ docker-compose up -d web-scraper analytics-builder backend
 
 # Wait for backend
 log "Waiting for backend API..."
-for i in {1..20}; do
+for i in {1..40}; do
     if curl -s http://localhost:8000/health &>/dev/null; then
         success "Backend API is ready!"
         break
     fi
-    
-    if [ $i -eq 20 ]; then
-        error "Backend API failed to start within timeout"
-        exit 1
+
+    if [ $i -eq 40 ]; then
+        warning "Backend API took longer than expected"
+        warning "Check logs with: docker logs crypto-viz-backend"
+        break
     fi
-    
+
     echo -n "."
-    sleep 10
+    sleep 5
 done
 
 # Start frontend
@@ -193,17 +249,18 @@ docker-compose up -d frontend
 
 # Wait for frontend
 log "Waiting for frontend..."
-for i in {1..15}; do
-    if curl -s http://localhost:3000/health &>/dev/null; then
+for i in {1..30}; do
+    if curl -s http://localhost:3000 &>/dev/null; then
         success "Frontend is ready!"
         break
     fi
-    
-    if [ $i -eq 15 ]; then
-        error "Frontend failed to start within timeout"
-        exit 1
+
+    if [ $i -eq 30 ]; then
+        warning "Frontend took longer than expected"
+        warning "Check logs with: docker logs crypto-viz-frontend"
+        break
     fi
-    
+
     echo -n "."
     sleep 5
 done

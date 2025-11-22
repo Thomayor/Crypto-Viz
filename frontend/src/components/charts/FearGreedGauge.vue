@@ -48,10 +48,10 @@
         </g>
 
         <!-- Value display -->
-        <text x="200" y="180" text-anchor="middle" class="gauge-value">
+        <text x="200" y="160" text-anchor="middle" class="gauge-value">
           {{ currentValue }}
         </text>
-        <text x="200" y="210" text-anchor="middle" class="gauge-label">
+        <text x="200" y="230" text-anchor="middle" class="gauge-label">
           {{ currentLabel }}
         </text>
       </svg>

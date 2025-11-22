@@ -43,8 +43,9 @@ RUN pip install --upgrade pip && \
 # Copier le code source
 COPY . .
 
-# Créer les répertoires nécessaires
+# Créer les répertoires nécessaires et rendre le script executable
 RUN mkdir -p /app/data /app/logs /app/static && \
+    chmod +x /app/entrypoint.sh && \
     chown -R backend:backend /app
 
 # Passer à l'utilisateur non-root
@@ -63,4 +64,4 @@ ENV PORT=8000
 ENV LOG_LEVEL=INFO
 
 # Point d'entrée
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+ENTRYPOINT ["/app/entrypoint.sh"]

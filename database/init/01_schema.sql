@@ -30,14 +30,18 @@ CREATE TABLE IF NOT EXISTS public.crypto_prices (
     symbol VARCHAR(20) NOT NULL,
     name VARCHAR(100),
     price DECIMAL(20,8) NOT NULL,
-    volume_24h DECIMAL(20,8),
-    market_cap DECIMAL(20,8),
+    volume_24h DECIMAL(30,2),
+    market_cap DECIMAL(30,2),
     percent_change_1h DECIMAL(10,4),
     percent_change_24h DECIMAL(10,4),
     percent_change_7d DECIMAL(10,4),
+    circulating_supply DECIMAL(30,2),
+    total_supply DECIMAL(30,2),
+    max_supply DECIMAL(30,2),
     rank INTEGER,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    source VARCHAR(50) DEFAULT 'coinmarketcap'
+    source VARCHAR(50) DEFAULT 'coinmarketcap',
+    UNIQUE(symbol, timestamp)
 );
 
 -- Table for storing crypto news data (scraped)
@@ -276,6 +280,9 @@ SELECT DISTINCT ON (symbol)
     percent_change_1h,
     percent_change_24h,
     percent_change_7d,
+    circulating_supply,
+    total_supply,
+    max_supply,
     rank,
     timestamp,
     source
@@ -308,3 +315,23 @@ INSERT INTO public.api_sources (source_name, base_url, api_key_required, rate_li
 ('NewsAPI', 'https://newsapi.org/v2', true, 1000),
 ('CryptoPanic', 'https://cryptopanic.com/api/v1', true, 200)
 ON CONFLICT (source_name) DO NOTHING;
+
+-- =====================================================
+-- SYSTEM LOGS TABLE
+-- =====================================================
+
+-- Table for storing system logs from all services
+CREATE TABLE IF NOT EXISTS public.system_logs (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    service VARCHAR(100) NOT NULL,
+    level VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
+    metadata JSONB,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index for faster log queries
+CREATE INDEX IF NOT EXISTS idx_system_logs_service ON public.system_logs(service);
+CREATE INDEX IF NOT EXISTS idx_system_logs_level ON public.system_logs(level);
+CREATE INDEX IF NOT EXISTS idx_system_logs_timestamp ON public.system_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_system_logs_metadata ON public.system_logs USING GIN(metadata);

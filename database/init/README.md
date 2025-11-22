@@ -25,7 +25,8 @@ volumes:
 **When it runs**: Automatically on first PostgreSQL startup
 
 **Contains**:
-- ✅ `analysis_method` and `confidence_score` columns (previously in migration 002)
+- ✅ `analysis_method` and `confidence_score` columns in `crypto_news` (sentiment metadata)
+- ✅ `circulating_supply`, `total_supply`, `max_supply` columns in `crypto_prices` (supply data)
 - ✅ All indexes including sentiment metadata indexes
 - ✅ Complete and up-to-date schema
 

@@ -149,13 +149,10 @@ except Exception as e:
 
 wait_for_postgres || exit 1
 
-# Run database migrations
-log "Running database migrations..."
-python /app/migrate_db.py || {
-    log "ERROR: Database migration failed"
-    exit 1
-}
-log "Database migrations completed successfully!"
+# NOTE: Database schema is now auto-initialized by PostgreSQL via /docker-entrypoint-initdb.d/
+# No need to run manual migrations - schema is created on first container startup
+# Previous migration system (migrate_db.py) has been disabled to prevent conflicts
+log "PostgreSQL schema initialized automatically on first startup"
 
 # Vérification du modèle Ollama
 log "Checking Ollama model availability..."

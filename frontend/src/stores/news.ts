@@ -12,15 +12,15 @@ export const useNewsStore = defineStore('news', () => {
 
   // Computed
   const positiveNews = computed(() =>
-    news.value.filter(n => n.sentiment_label === 'positive')
+    news.value.filter(n => n.sentiment_label?.toUpperCase() === 'POSITIVE')
   )
 
   const negativeNews = computed(() =>
-    news.value.filter(n => n.sentiment_label === 'negative')
+    news.value.filter(n => n.sentiment_label?.toUpperCase() === 'NEGATIVE')
   )
 
   const neutralNews = computed(() =>
-    news.value.filter(n => n.sentiment_label === 'neutral')
+    news.value.filter(n => n.sentiment_label?.toUpperCase() === 'NEUTRAL')
   )
 
   const averageSentiment = computed(() => {
@@ -82,12 +82,22 @@ export const useNewsStore = defineStore('news', () => {
     }
   }
 
+  // Alias for compatibility
+  async function fetchSocialPosts(limit: number = 20, hours: number = 24) {
+    return fetchLatestSocial('all', limit, hours)
+  }
+
   function getNewsByCoin(symbol: string) {
     return news.value.filter(n => n.mentioned_coins.includes(symbol))
   }
 
   function getSocialByCoin(symbol: string) {
     return socialPosts.value.filter(p => p.mentioned_coins.includes(symbol))
+  }
+
+  function getSocialPostsByPlatform(platform: string) {
+    if (platform === 'all') return socialPosts.value
+    return socialPosts.value.filter(p => p.platform === platform)
   }
 
   function clearError() {
@@ -114,8 +124,10 @@ export const useNewsStore = defineStore('news', () => {
     // Actions
     fetchLatestNews,
     fetchLatestSocial,
+    fetchSocialPosts,
     getNewsByCoin,
     getSocialByCoin,
+    getSocialPostsByPlatform,
     clearError,
   }
 })
