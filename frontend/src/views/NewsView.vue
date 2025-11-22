@@ -151,8 +151,8 @@
             :style="{ animationDelay: `${index * 0.05}s` }"
           >
             <div class="flex items-start justify-between mb-3">
-              <div :class="['sentiment-badge', getSentimentBadgeClass(article.sentiment)]">
-                {{ article.sentiment }}
+              <div :class="['sentiment-badge', getSentimentBadgeClass(article.sentiment_label)]">
+                {{ article.sentiment_label }}
               </div>
               <div class="text-xs text-gray-500">
                 {{ formatDate(article.published_at) }}
@@ -315,22 +315,23 @@ usePolling(async () => {
 
 // Computed properties
 const positiveCount = computed(() =>
-  newsStore.news?.filter(n => n.sentiment === 'positive').length || 0
+  newsStore.news?.filter(n => n.sentiment_label?.toUpperCase() === 'POSITIVE').length || 0
 )
 
 const neutralCount = computed(() =>
-  newsStore.news?.filter(n => n.sentiment === 'neutral').length || 0
+  newsStore.news?.filter(n => n.sentiment_label?.toUpperCase() === 'NEUTRAL').length || 0
 )
 
 const negativeCount = computed(() =>
-  newsStore.news?.filter(n => n.sentiment === 'negative').length || 0
+  newsStore.news?.filter(n => n.sentiment_label?.toUpperCase() === 'NEGATIVE').length || 0
 )
 
 const averageSentiment = computed(() => {
   if (!newsStore.news || newsStore.news.length === 0) return 0.5
   const sentimentValues = newsStore.news.map(n => {
-    if (n.sentiment === 'positive') return 1
-    if (n.sentiment === 'neutral') return 0.5
+    const label = n.sentiment_label?.toUpperCase()
+    if (label === 'POSITIVE') return 1
+    if (label === 'NEUTRAL') return 0.5
     return 0
   })
   const sum = sentimentValues.reduce((acc, val) => acc + val, 0)
@@ -346,7 +347,7 @@ const filteredNews = computed(() => {
   if (selectedSentiment.value === 'all') {
     return newsStore.news
   }
-  return newsStore.news.filter(n => n.sentiment === selectedSentiment.value)
+  return newsStore.news.filter(n => n.sentiment_label?.toUpperCase() === selectedSentiment.value.toUpperCase())
 })
 
 const filteredSocialPosts = computed(() => {
@@ -366,21 +367,23 @@ const isRecent = (date: string | Date) => {
 }
 
 const getSentimentBadgeClass = (sentiment: string) => {
+  const label = sentiment?.toUpperCase()
   const classes = {
-    positive: 'sentiment-positive',
-    neutral: 'sentiment-neutral',
-    negative: 'sentiment-negative'
+    POSITIVE: 'sentiment-positive',
+    NEUTRAL: 'sentiment-neutral',
+    NEGATIVE: 'sentiment-negative'
   }
-  return classes[sentiment as keyof typeof classes] || 'sentiment-neutral'
+  return classes[label as keyof typeof classes] || 'sentiment-neutral'
 }
 
 const getSentimentDotClass = (sentiment: string) => {
+  const label = sentiment?.toUpperCase()
   const classes = {
-    positive: 'bg-green-500',
-    neutral: 'bg-gray-500',
-    negative: 'bg-red-500'
+    POSITIVE: 'bg-green-500',
+    NEUTRAL: 'bg-gray-500',
+    NEGATIVE: 'bg-red-500'
   }
-  return classes[sentiment as keyof typeof classes] || 'bg-gray-500'
+  return classes[label as keyof typeof classes] || 'bg-gray-500'
 }
 
 const getSentimentBarClass = (score: number) => {

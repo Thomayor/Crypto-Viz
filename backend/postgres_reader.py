@@ -12,6 +12,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 import json
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -19,29 +20,43 @@ logger = logging.getLogger(__name__)
 class PostgreSQLReader:
     """Handles reading data from PostgreSQL"""
 
-    def __init__(self, min_conn: int = 1, max_conn: int = 10):
-        """Initialize PostgreSQL connection pool"""
+    def __init__(self, min_conn: int = 1, max_conn: int = 10, max_retries: int = 10):
+        """Initialize PostgreSQL connection pool with retry logic"""
         self.host = os.getenv('POSTGRES_HOST', 'postgres')
         self.port = int(os.getenv('POSTGRES_PORT', '5432'))
         self.user = os.getenv('POSTGRES_USER', 'crypto_viz')
         self.password = os.getenv('POSTGRES_PASSWORD', 'crypto_viz_password')
         self.database = os.getenv('POSTGRES_DB', 'crypto_analytics')
 
-        try:
-            self.pool = ThreadedConnectionPool(
-                min_conn,
-                max_conn,
-                host=self.host,
-                port=self.port,
-                user=self.user,
-                password=self.password,
-                database=self.database,
-                cursor_factory=RealDictCursor
-            )
-            logger.info(f"PostgreSQL connection pool created ({min_conn}-{max_conn} connections)")
-        except Exception as e:
-            logger.error(f"Failed to create connection pool: {e}")
-            raise
+        # Retry connection with exponential backoff
+        retry_delay = 2  # Initial delay in seconds
+        last_exception = None
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                logger.info(f"Attempting to connect to PostgreSQL (attempt {attempt}/{max_retries})...")
+                self.pool = ThreadedConnectionPool(
+                    min_conn,
+                    max_conn,
+                    host=self.host,
+                    port=self.port,
+                    user=self.user,
+                    password=self.password,
+                    database=self.database,
+                    cursor_factory=RealDictCursor
+                )
+                logger.info(f"✓ PostgreSQL connection pool created ({min_conn}-{max_conn} connections)")
+                return  # Success - exit constructor
+            except Exception as e:
+                last_exception = e
+                if attempt < max_retries:
+                    logger.warning(f"Failed to connect to PostgreSQL (attempt {attempt}/{max_retries}): {e}")
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay = min(retry_delay * 2, 30)  # Exponential backoff, max 30s
+                else:
+                    logger.error(f"Failed to create connection pool after {max_retries} attempts: {e}")
+                    raise last_exception
 
     def get_connection(self):
         """Get a connection from the pool"""
@@ -50,6 +65,28 @@ class PostgreSQLReader:
     def return_connection(self, conn):
         """Return a connection to the pool"""
         self.pool.putconn(conn)
+
+    def query(self, sql: str, params: tuple = None) -> List[tuple]:
+        """Execute a generic SQL query and return results as list of tuples"""
+        conn = None
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()  # RealDictCursor from pool config
+            if params:
+                cursor.execute(sql, params)
+            else:
+                cursor.execute(sql)
+            results = cursor.fetchall()
+            logger.info(f"Query returned {len(results)} rows")
+            return results
+        except Exception as e:
+            logger.error(f"Error executing query: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
+        finally:
+            if conn:
+                self.return_connection(conn)
 
     def close_all(self):
         """Close all connections in the pool"""
@@ -491,7 +528,8 @@ class PostgreSQLReader:
                         COUNT(CASE WHEN sentiment_label IN ('POSITIVE', 'positive') THEN 1 END) as positive_count,
                         COUNT(CASE WHEN sentiment_label IN ('NEGATIVE', 'negative') THEN 1 END) as negative_count,
                         COUNT(CASE WHEN sentiment_label IN ('NEUTRAL', 'neutral') THEN 1 END) as neutral_count,
-                        COUNT(CASE WHEN analysis_method = 'ollama' THEN 1 END) as ollama_analyzed
+                        COUNT(CASE WHEN analysis_method = 'ollama' THEN 1 END) as ollama_analyzed,
+                        AVG(CASE WHEN confidence_score IS NOT NULL THEN confidence_score END) as avg_confidence
                     FROM crypto_news
                     WHERE published_at >= %s
                       AND (
@@ -512,7 +550,8 @@ class PostgreSQLReader:
                         COUNT(CASE WHEN sentiment_label IN ('POSITIVE', 'positive') THEN 1 END) as positive_count,
                         COUNT(CASE WHEN sentiment_label IN ('NEGATIVE', 'negative') THEN 1 END) as negative_count,
                         COUNT(CASE WHEN sentiment_label IN ('NEUTRAL', 'neutral') THEN 1 END) as neutral_count,
-                        COUNT(CASE WHEN analysis_method = 'ollama' THEN 1 END) as ollama_analyzed
+                        COUNT(CASE WHEN analysis_method = 'ollama' THEN 1 END) as ollama_analyzed,
+                        AVG(CASE WHEN confidence_score IS NOT NULL THEN confidence_score END) as avg_confidence
                     FROM crypto_news
                     WHERE published_at >= %s
                     GROUP BY date_trunc('hour', published_at)

@@ -1,7 +1,29 @@
 {
   "permissions": {
     "allow": [
-      "Bash(timeout 60 bash:*)"
+      "Bash(chmod:*)",
+      "Bash(bash:*)",
+      "Bash(c:/Users/fourq/Documents/CRYPTO_VIZ/backend/routers/analytics_temp.py)",
+      "Bash(docker-compose stop:*)",
+      "Bash(docker-compose rm:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker-compose restart:*)",
+      "Bash(python scripts/generate_ml_test_data.py:*)",
+      "Bash(docker cp:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(dos2unix:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(docker volume:*)",
+      "Bash(python:*)",
+      "Bash(make restart-full:*)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []

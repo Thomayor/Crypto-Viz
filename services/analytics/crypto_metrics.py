@@ -539,6 +539,181 @@ class CryptoMetrics:
             logger.error(f"Failed to publish to Kafka: {e}")
             return {}
 
+    # ========================================
+    # MOMENTUM SCORING
+    # ========================================
+
+    def calculate_momentum_score(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate custom momentum score combining multiple indicators
+
+        Momentum components:
+        - RSI score (0-100 normalized)
+        - MACD score (signal strength)
+        - Volume score (relative to average)
+        - Trend score (from moving averages)
+
+        Args:
+            df: DataFrame with calculated indicators (RSI, MACD, MA, volume)
+
+        Returns:
+            DataFrame with momentum scores added
+        """
+        try:
+            # Ensure required columns exist
+            required_cols = ['rsi', 'macd_histogram', 'volume_24h', 'ma20', 'ma50', 'ma200']
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            if missing_cols:
+                logger.warning(f"Missing columns for momentum calculation: {missing_cols}")
+                return df
+
+            results = []
+            for symbol in df['symbol'].unique():
+                symbol_df = df[df['symbol'] == symbol].copy().sort_values('timestamp')
+
+                # Skip if not enough data
+                if len(symbol_df) < 50:
+                    continue
+
+                # 1. RSI Score (0-25 points)
+                # Oversold (0-30): score 5-10, Neutral (30-70): score 10-20, Overbought (70-100): score 15-25
+                symbol_df['rsi_score'] = symbol_df['rsi'].apply(lambda x:
+                    5 + (x / 30 * 5) if x <= 30 else  # Oversold
+                    (10 + ((x - 30) / 40 * 10)) if x <= 70 else  # Neutral
+                    (15 + ((x - 70) / 30 * 10))  # Overbought
+                )
+
+                # 2. MACD Score (0-30 points)
+                # Based on histogram strength and whether MACD is above/below signal
+                max_histogram = symbol_df['macd_histogram'].abs().max()
+                if max_histogram > 0:
+                    symbol_df['macd_score'] = symbol_df['macd_histogram'].apply(lambda x:
+                        15 + (x / max_histogram * 15) if x > 0 else
+                        15 + (x / max_histogram * 15)
+                    )
+                else:
+                    symbol_df['macd_score'] = 15.0
+
+                # 3. Volume Score (0-25 points)
+                # Relative volume compared to average
+                avg_volume = symbol_df['volume_24h'].rolling(window=50, min_periods=1).mean()
+                symbol_df['volume_ratio'] = symbol_df['volume_24h'] / avg_volume
+                symbol_df['volume_score'] = symbol_df['volume_ratio'].apply(lambda x:
+                    min(x * 12.5, 25.0)  # Cap at 25 points
+                )
+
+                # 4. Trend Score (0-20 points)
+                # Based on moving average alignment
+                symbol_df['trend_score'] = 10.0  # Default neutral
+                # Bullish: MA20 > MA50 > MA200
+                bullish = (symbol_df['ma20'] > symbol_df['ma50']) & (symbol_df['ma50'] > symbol_df['ma200'])
+                symbol_df.loc[bullish, 'trend_score'] = 20.0
+                # Bearish: MA20 < MA50 < MA200
+                bearish = (symbol_df['ma20'] < symbol_df['ma50']) & (symbol_df['ma50'] < symbol_df['ma200'])
+                symbol_df.loc[bearish, 'trend_score'] = 5.0
+                # Mixed: partial alignment
+                mixed = ~(bullish | bearish)
+                symbol_df.loc[mixed, 'trend_score'] = 12.0
+
+                # 5. Total Momentum Score (0-100)
+                symbol_df['total_momentum_score'] = (
+                    symbol_df['rsi_score'] * 0.25 +
+                    symbol_df['macd_score'] * 0.30 +
+                    symbol_df['volume_score'] * 0.25 +
+                    symbol_df['trend_score'] * 0.20
+                ).clip(0, 100)
+
+                # 6. Momentum Label
+                symbol_df['momentum_label'] = pd.cut(
+                    symbol_df['total_momentum_score'],
+                    bins=[0, 20, 40, 60, 80, 100],
+                    labels=['very_bearish', 'bearish', 'neutral', 'bullish', 'very_bullish'],
+                    include_lowest=True
+                )
+
+                # 7. Recommendation
+                symbol_df['recommendation'] = symbol_df['total_momentum_score'].apply(lambda x:
+                    'strong_sell' if x <= 20 else
+                    'sell' if x <= 40 else
+                    'hold' if x <= 60 else
+                    'buy' if x <= 80 else
+                    'strong_buy'
+                )
+
+                # 8. Confidence (based on data quality and consistency)
+                # Higher confidence if all indicators align
+                signal_alignment = (
+                    (symbol_df['rsi_score'] > 15) == (symbol_df['macd_score'] > 15)
+                ).astype(float)
+                symbol_df['confidence'] = (
+                    0.5 + (signal_alignment * 0.3) +
+                    (symbol_df['volume_ratio'].clip(0, 2) / 2 * 0.2)
+                ).clip(0, 1)
+
+                results.append(symbol_df)
+
+            if results:
+                result_df = pd.concat(results, ignore_index=True)
+                logger.info(f"✓ Calculated momentum scores for {len(result_df['symbol'].unique())} symbols")
+                return result_df
+            else:
+                logger.warning("No momentum scores calculated")
+                return df
+
+        except Exception as e:
+            logger.error(f"Failed to calculate momentum scores: {e}")
+            return df
+
+    def publish_momentum_scores_to_postgres(self, df: pd.DataFrame, postgres_writer=None) -> int:
+        """
+        Publish momentum scores to PostgreSQL
+
+        Args:
+            df: DataFrame with momentum scores
+            postgres_writer: PostgreSQLWriter instance (optional)
+
+        Returns:
+            Number of momentum scores saved
+        """
+        try:
+            if postgres_writer is None:
+                from postgres_writer import PostgreSQLWriter
+                postgres_writer = PostgreSQLWriter()
+
+            # Get latest momentum score per symbol
+            latest_momentum = df.sort_values('timestamp').groupby('symbol').tail(1)
+
+            saved_count = 0
+            for _, row in latest_momentum.iterrows():
+                momentum_data = {
+                    'symbol': row['symbol'],
+                    'rsi_score': float(row['rsi_score']),
+                    'macd_score': float(row['macd_score']),
+                    'volume_score': float(row['volume_score']),
+                    'trend_score': float(row['trend_score']),
+                    'total_momentum_score': float(row['total_momentum_score']),
+                    'momentum_label': str(row['momentum_label']),
+                    'recommendation': str(row['recommendation']),
+                    'confidence': float(row['confidence']),
+                    'calculated_at': row['timestamp'] if isinstance(row['timestamp'], datetime) else pd.to_datetime(row['timestamp']),
+                    'metadata': {
+                        'rsi': float(row['rsi']),
+                        'macd_histogram': float(row['macd_histogram']),
+                        'volume_ratio': float(row.get('volume_ratio', 1.0)),
+                        'price': float(row['price'])
+                    }
+                }
+
+                if postgres_writer.write_momentum_score(momentum_data):
+                    saved_count += 1
+
+            logger.info(f"✓ Saved {saved_count} momentum scores to PostgreSQL")
+            return saved_count
+
+        except Exception as e:
+            logger.error(f"Failed to publish momentum scores to PostgreSQL: {e}")
+            return 0
+
     def close(self):
         """Close Kafka producer connection"""
         if self.producer:

@@ -140,7 +140,7 @@ analytics_modules:
 ml_pipeline:
   # Price Prediction
   price_prediction:
-    enabled: false  # Disabled for performance - use crypto_metrics instead
+    enabled: true  # Enabled for ML Analytics dashboard
     model_type: linear_regression
     features:
       - price_lag_1h
@@ -155,7 +155,7 @@ ml_pipeline:
 
   # Clustering Analysis
   clustering:
-    enabled: false  # Disabled for performance - heavy shuffle operations
+    enabled: true  # Enabled for ML Analytics dashboard
     algorithm: kmeans
     n_clusters: 5
     features:
@@ -167,7 +167,7 @@ ml_pipeline:
 
   # Anomaly Detection (Spark ML)
   anomaly:
-    enabled: false  # Disabled for performance - use simple z-score in crypto_metrics
+    enabled: true  # Enabled for ML Analytics dashboard
     algorithm: isolation_forest
     features:
       - price_zscore
