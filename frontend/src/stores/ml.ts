@@ -95,10 +95,15 @@ export const useMLStore = defineStore('ml', () => {
 
       const response = await api.getPredictions()
 
+      console.log('🔍 ML Store - Raw API response:', response)
+      console.log('🔍 ML Store - Response type:', typeof response)
+      console.log('🔍 ML Store - Response keys:', response ? Object.keys(response) : 'null')
+
       // Response is an object with symbol keys, flatten to array
       const allPredictions: MLPrediction[] = []
       if (response && typeof response === 'object') {
         Object.entries(response).forEach(([sym, preds]: [string, any]) => {
+          console.log(`🔍 ML Store - Processing ${sym}:`, Array.isArray(preds), preds?.length)
           if (Array.isArray(preds)) {
             // Filter by symbol if specified
             if (!symbol || sym === symbol) {
@@ -107,6 +112,9 @@ export const useMLStore = defineStore('ml', () => {
           }
         })
       }
+
+      console.log('🔍 ML Store - Total predictions after flattening:', allPredictions.length)
+      console.log('🔍 ML Store - Sample prediction:', allPredictions[0])
 
       predictions.value = allPredictions
     } catch (err: any) {

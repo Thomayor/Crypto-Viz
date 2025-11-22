@@ -13,7 +13,7 @@
         <select
           v-model="selectedSymbol"
           @change="loadPredictions"
-          class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg"
+          class="px-3 py-2 bg-white text-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg"
         >
           <option value="BTC">Bitcoin (BTC)</option>
           <option value="ETH">Ethereum (ETH)</option>
@@ -168,7 +168,11 @@ const mlStore = useMLStore()
 const loading = ref(false)
 const selectedSymbol = ref('BTC')
 
-const predictions = computed(() => mlStore.predictions)
+// Filter predictions by selected symbol locally instead of filtering the store
+const predictions = computed(() => {
+  if (!mlStore.predictions || mlStore.predictions.length === 0) return []
+  return mlStore.predictions.filter(p => p.symbol === selectedSymbol.value)
+})
 
 const latestPrediction = computed(() =>
   predictions.value.length > 0 ? predictions.value[0] : null
@@ -177,7 +181,8 @@ const latestPrediction = computed(() =>
 async function loadPredictions() {
   loading.value = true
   try {
-    await mlStore.fetchPredictions(selectedSymbol.value)
+    // Load all predictions without filtering - filter happens in computed
+    await mlStore.fetchPredictions()
   } catch (error) {
     console.error('Error loading predictions:', error)
   } finally {

@@ -25,7 +25,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <StatsCard
           label="Total Predictions"
-          :value="Object.keys(analyticsStore.predictions || {}).length.toString()"
+          :value="(mlStore.predictions?.length || 0).toString()"
           :change="12.5"
           :icon="ChartBarIcon"
           icon-color="purple"
@@ -33,7 +33,7 @@
           <template #footer>
             <div class="flex items-center justify-between text-xs">
               <span class="text-gray-400">Confidence</span>
-              <span class="text-purple-400 font-semibold">85%</span>
+              <span class="text-purple-400 font-semibold">{{ averageConfidence }}%</span>
             </div>
           </template>
         </StatsCard>
@@ -223,51 +223,6 @@
           </div>
         </div>
       </div>
-
-      <!-- ML Predictions Table -->
-      <DataTable
-        title="ML Predictions"
-        subtitle="Machine learning price predictions with confidence intervals"
-        :columns="predictionColumns"
-        :data="allPredictions"
-        :searchable="true"
-        :paginated="true"
-        :items-per-page="10"
-      >
-        <template #cell-coin_id="{ value }">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
-              {{ value.substring(0, 2).toUpperCase() }}
-            </div>
-            <span class="font-semibold text-white">{{ value }}</span>
-          </div>
-        </template>
-
-        <template #cell-predicted_price="{ value }">
-          <span class="font-semibold text-white">{{ formatPrice(value) }}</span>
-        </template>
-
-        <template #cell-confidence="{ value }">
-          <div class="flex items-center gap-2">
-            <div class="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
-              <div
-                :class="[
-                  'h-full rounded-full transition-all duration-500',
-                  value >= 0.8 ? 'bg-green-500' : value >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
-                ]"
-                :style="{ width: `${value * 100}%` }"
-              ></div>
-            </div>
-            <span class="text-sm font-semibold text-white min-w-[3rem]">{{ (value * 100).toFixed(0) }}%</span>
-          </div>
-        </template>
-
-        <template #cell-model_type="{ value }">
-          <span class="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs font-semibold">
-            {{ value }}
-          </span>
-        </template>
-      </DataTable>
     </div>
   </div>
 </template>
@@ -281,7 +236,6 @@ import { useFormatting } from '@/composables/useFormatting'
 import { usePolling } from '@/composables/usePolling'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import StatsCard from '@/components/ui/StatsCard.vue'
-import DataTable from '@/components/ui/DataTable.vue'
 import ApexLineChart from '@/components/charts/ApexLineChart.vue'
 import FearGreedGauge from '@/components/charts/FearGreedGauge.vue'
 import SentimentMethodBadge from '@/components/SentimentMethodBadge.vue'
@@ -299,7 +253,7 @@ import {
 const analyticsStore = useAnalyticsStore()
 const mlStore = useMLStore()
 const cryptoStore = useCryptoStore()
-const { formatPrice, formatDate } = useFormatting()
+const { formatDate } = useFormatting()
 
 const selectedCoin = ref('')
 const selectedSeverity = ref('all')
@@ -307,7 +261,7 @@ const selectedSeverity = ref('all')
 // Polling
 usePolling(async () => {
   await Promise.all([
-    analyticsStore.fetchPredictions(selectedCoin.value || undefined),
+    mlStore.fetchPredictions(selectedCoin.value || undefined),
     analyticsStore.fetchAnomalies(selectedCoin.value || undefined),
     analyticsStore.fetchSentiment(selectedCoin.value || undefined)
   ])
@@ -409,25 +363,23 @@ const sentimentChartData = computed(() => {
   }))
 })
 
-// All predictions flattened for table
-const allPredictions = computed(() => {
-  if (!analyticsStore.predictions) return []
-  return Object.entries(analyticsStore.predictions).flatMap(([coin, preds]) =>
-    preds.map((p: any) => ({ ...p, coin_id: coin }))
-  )
+// Average confidence for predictions
+const averageConfidence = computed(() => {
+  try {
+    if (!mlStore.predictions || mlStore.predictions.length === 0) return 0
+    const validPredictions = mlStore.predictions.filter((p: any) => p && typeof p.confidence === 'number')
+    if (validPredictions.length === 0) return 0
+    const sum = validPredictions.reduce((acc: number, p: any) => acc + p.confidence, 0)
+    return Math.round((sum / validPredictions.length) * 100)
+  } catch (error) {
+    console.error('Error calculating average confidence:', error)
+    return 0
+  }
 })
-
-// Table configuration
-const predictionColumns = [
-  { key: 'coin_id', label: 'Coin', sortable: true },
-  { key: 'predicted_price', label: 'Predicted Price', sortable: true, align: 'right' as const },
-  { key: 'confidence', label: 'Confidence', sortable: true },
-  { key: 'model_type', label: 'Model', sortable: true },
-]
 
 const handleCoinChange = async () => {
   await Promise.all([
-    analyticsStore.fetchPredictions(selectedCoin.value || undefined),
+    mlStore.fetchPredictions(selectedCoin.value || undefined),
     analyticsStore.fetchAnomalies(selectedCoin.value || undefined),
     analyticsStore.fetchSentiment(selectedCoin.value || undefined)
   ])
@@ -437,7 +389,7 @@ const handleCoinChange = async () => {
 onMounted(async () => {
   await Promise.all([
     cryptoStore.fetchLatestPrices(50),
-    analyticsStore.fetchPredictions(),
+    mlStore.fetchPredictions(),
     analyticsStore.fetchAnomalies(),
     analyticsStore.fetchSentiment()
   ])
