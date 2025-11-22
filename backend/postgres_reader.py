@@ -528,7 +528,8 @@ class PostgreSQLReader:
                         COUNT(CASE WHEN sentiment_label IN ('POSITIVE', 'positive') THEN 1 END) as positive_count,
                         COUNT(CASE WHEN sentiment_label IN ('NEGATIVE', 'negative') THEN 1 END) as negative_count,
                         COUNT(CASE WHEN sentiment_label IN ('NEUTRAL', 'neutral') THEN 1 END) as neutral_count,
-                        COUNT(CASE WHEN analysis_method = 'ollama' THEN 1 END) as ollama_analyzed
+                        COUNT(CASE WHEN analysis_method = 'ollama' THEN 1 END) as ollama_analyzed,
+                        AVG(CASE WHEN confidence_score IS NOT NULL THEN confidence_score END) as avg_confidence
                     FROM crypto_news
                     WHERE published_at >= %s
                       AND (
@@ -549,7 +550,8 @@ class PostgreSQLReader:
                         COUNT(CASE WHEN sentiment_label IN ('POSITIVE', 'positive') THEN 1 END) as positive_count,
                         COUNT(CASE WHEN sentiment_label IN ('NEGATIVE', 'negative') THEN 1 END) as negative_count,
                         COUNT(CASE WHEN sentiment_label IN ('NEUTRAL', 'neutral') THEN 1 END) as neutral_count,
-                        COUNT(CASE WHEN analysis_method = 'ollama' THEN 1 END) as ollama_analyzed
+                        COUNT(CASE WHEN analysis_method = 'ollama' THEN 1 END) as ollama_analyzed,
+                        AVG(CASE WHEN confidence_score IS NOT NULL THEN confidence_score END) as avg_confidence
                     FROM crypto_news
                     WHERE published_at >= %s
                     GROUP BY date_trunc('hour', published_at)

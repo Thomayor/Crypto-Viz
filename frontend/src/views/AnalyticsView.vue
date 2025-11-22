@@ -124,8 +124,15 @@
             y-axis-label="Predicted Price"
             :smooth="true"
           />
-          <div v-else class="flex items-center justify-center h-[300px] text-gray-400">
-            No prediction data available
+          <div v-else class="flex flex-col items-center justify-center h-[300px] text-center px-8">
+            <ExclamationCircleIcon class="h-16 w-16 text-gray-500 mb-4" />
+            <p class="text-lg font-semibold text-gray-300 mb-2">Aucune prédiction disponible</p>
+            <p class="text-sm text-gray-400">
+              {{ selectedCoin
+                ? `Désolé, il n'y a pas de prédictions de prix ML pour ${selectedCoin.toUpperCase()} sur les dernières 24 heures.`
+                : 'Désolé, il n\'y a pas de prédictions de prix ML sur les dernières 24 heures.'
+              }}
+            </p>
           </div>
         </div>
 
@@ -142,8 +149,15 @@
             :ollama-analyzed="ollamaAnalyzed"
             :avg-confidence="avgConfidence"
           />
-          <div v-else class="flex items-center justify-center h-[300px] text-gray-400">
-            No sentiment data available
+          <div v-else class="flex flex-col items-center justify-center h-[300px] text-center px-8">
+            <ExclamationCircleIcon class="h-16 w-16 text-gray-500 mb-4" />
+            <p class="text-lg font-semibold text-gray-300 mb-2">Aucune donnée disponible</p>
+            <p class="text-sm text-gray-400">
+              {{ selectedCoin
+                ? `Désolé, il n'y a pas de données d'analyse de sentiment pour ${selectedCoin.toUpperCase()} sur les dernières 24 heures.`
+                : 'Désolé, il n\'y a pas de données d\'analyse de sentiment sur les dernières 24 heures.'
+              }}
+            </p>
           </div>
         </div>
       </div>
@@ -246,6 +260,7 @@ import AnomalyAlerts from '@/components/ml/AnomalyAlerts.vue'
 import {
   ChartBarIcon,
   ExclamationTriangleIcon,
+  ExclamationCircleIcon,
   FaceSmileIcon,
   CpuChipIcon,
 } from '@heroicons/vue/24/outline'

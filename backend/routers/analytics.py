@@ -142,83 +142,115 @@ async def get_all_sentiment(
     try:
         pg_reader = get_pg_reader()
 
-        # Get time series data for the chart (filtered by symbol if provided)
-        timeseries = pg_reader.get_news_sentiment_timeseries(hours=hours, symbol=symbol)
-
-        # Get aggregated sentiment from news
-        overall_sentiment = pg_reader.get_news_sentiment_aggregated(hours=hours)
-
-        # Get sentiment by coin
-        by_coin_sentiment = pg_reader.get_news_sentiment_by_coin(hours=hours, min_mentions=2)
-
         # Transform to match frontend expected format
         sentiment_data = []
 
-        # Add time series data points for the chart
-        for ts in timeseries:
-            avg_sent = float(ts.get('average_sentiment', 0.0))
-            # Determine dominant sentiment
-            if avg_sent > 0.1:
-                dominant = 'positive'
-            elif avg_sent < -0.1:
-                dominant = 'negative'
-            else:
-                dominant = 'neutral'
+        # If a specific symbol is requested, only return data for that symbol
+        if symbol:
+            # Get time series data for the specific symbol
+            timeseries = pg_reader.get_news_sentiment_timeseries(hours=hours, symbol=symbol)
 
-            sentiment_data.append({
-                "symbol": "ALL",
-                "time_window": f"{hours}h",
-                "average_sentiment": avg_sent,
-                "positive_count": int(ts.get('positive_count', 0)),
-                "negative_count": int(ts.get('negative_count', 0)),
-                "neutral_count": int(ts.get('neutral_count', 0)),
-                "total_count": int(ts.get('article_count', 0)),
-                "ollama_analyzed": int(ts.get('ollama_analyzed', 0)),
-                "dominant_sentiment": dominant,
-                "timestamp": ts.get('time_bucket').isoformat() if ts.get('time_bucket') else datetime.now().isoformat()
-            })
+            # Add time series data points for the chart
+            for ts in timeseries:
+                avg_sent = float(ts.get('average_sentiment', 0.0))
+                # Determine dominant sentiment
+                if avg_sent > 0.1:
+                    dominant = 'positive'
+                elif avg_sent < -0.1:
+                    dominant = 'negative'
+                else:
+                    dominant = 'neutral'
 
-        # If no timeseries data, add overall as fallback
-        if not sentiment_data and overall_sentiment:
-            overall = overall_sentiment[0]
-            avg_sent = float(overall.get('average_sentiment', 0.0))
-            # Determine dominant sentiment
-            if avg_sent > 0.1:
-                dominant = 'positive'
-            elif avg_sent < -0.1:
-                dominant = 'negative'
-            else:
-                dominant = 'neutral'
+                sentiment_data.append({
+                    "symbol": symbol.upper(),
+                    "time_window": f"{hours}h",
+                    "average_sentiment": avg_sent,
+                    "positive_count": int(ts.get('positive_count', 0)),
+                    "negative_count": int(ts.get('negative_count', 0)),
+                    "neutral_count": int(ts.get('neutral_count', 0)),
+                    "total_count": int(ts.get('article_count', 0)),
+                    "ollama_analyzed": int(ts.get('ollama_analyzed', 0)),
+                    "avg_confidence": float(ts.get('avg_confidence', 0.0)) if ts.get('avg_confidence') else None,
+                    "dominant_sentiment": dominant,
+                    "timestamp": ts.get('time_bucket').isoformat() if ts.get('time_bucket') else datetime.now().isoformat()
+                })
+        else:
+            # Get all data when no symbol is specified
+            # Get time series data for the chart
+            timeseries = pg_reader.get_news_sentiment_timeseries(hours=hours, symbol=None)
 
-            sentiment_data.append({
-                "symbol": "ALL",
-                "time_window": f"{hours}h",
-                "average_sentiment": avg_sent,
-                "positive_count": int(overall.get('positive_count', 0)),
-                "negative_count": int(overall.get('negative_count', 0)),
-                "neutral_count": int(overall.get('neutral_count', 0)),
-                "total_count": int(overall.get('total_articles', 0)),
-                "ollama_analyzed": int(overall.get('ollama_analyzed', 0)),
-                "avg_confidence": float(overall.get('avg_confidence', 0.0)) if overall.get('avg_confidence') else None,
-                "dominant_sentiment": dominant,
-                "timestamp": overall.get('timestamp').isoformat() if overall.get('timestamp') else datetime.now().isoformat()
-            })
+            # Get aggregated sentiment from news
+            overall_sentiment = pg_reader.get_news_sentiment_aggregated(hours=hours)
 
-        # Add by-coin data
-        for coin in by_coin_sentiment:
-            sentiment_data.append({
-                "symbol": coin.get('symbol'),
-                "time_window": f"{hours}h",
-                "average_sentiment": float(coin.get('average_sentiment', 0.0)),
-                "positive_count": int(coin.get('positive_count', 0)),
-                "negative_count": int(coin.get('negative_count', 0)),
-                "neutral_count": int(coin.get('neutral_count', 0)),
-                "total_count": int(coin.get('mention_count', 0)),
-                "ollama_analyzed": int(coin.get('ollama_analyzed', 0)),
-                "avg_confidence": float(coin.get('avg_confidence', 0.0)) if coin.get('avg_confidence') else None,
-                "dominant_sentiment": coin.get('dominant_sentiment'),
-                "timestamp": coin.get('timestamp').isoformat() if coin.get('timestamp') else datetime.now().isoformat()
-            })
+            # Get sentiment by coin
+            by_coin_sentiment = pg_reader.get_news_sentiment_by_coin(hours=hours, min_mentions=2)
+
+            # Add time series data points for the chart
+            for ts in timeseries:
+                avg_sent = float(ts.get('average_sentiment', 0.0))
+                # Determine dominant sentiment
+                if avg_sent > 0.1:
+                    dominant = 'positive'
+                elif avg_sent < -0.1:
+                    dominant = 'negative'
+                else:
+                    dominant = 'neutral'
+
+                sentiment_data.append({
+                    "symbol": "ALL",
+                    "time_window": f"{hours}h",
+                    "average_sentiment": avg_sent,
+                    "positive_count": int(ts.get('positive_count', 0)),
+                    "negative_count": int(ts.get('negative_count', 0)),
+                    "neutral_count": int(ts.get('neutral_count', 0)),
+                    "total_count": int(ts.get('article_count', 0)),
+                    "ollama_analyzed": int(ts.get('ollama_analyzed', 0)),
+                    "avg_confidence": float(ts.get('avg_confidence', 0.0)) if ts.get('avg_confidence') else None,
+                    "dominant_sentiment": dominant,
+                    "timestamp": ts.get('time_bucket').isoformat() if ts.get('time_bucket') else datetime.now().isoformat()
+                })
+
+            # If no timeseries data, add overall as fallback
+            if not sentiment_data and overall_sentiment:
+                overall = overall_sentiment[0]
+                avg_sent = float(overall.get('average_sentiment', 0.0))
+                # Determine dominant sentiment
+                if avg_sent > 0.1:
+                    dominant = 'positive'
+                elif avg_sent < -0.1:
+                    dominant = 'negative'
+                else:
+                    dominant = 'neutral'
+
+                sentiment_data.append({
+                    "symbol": "ALL",
+                    "time_window": f"{hours}h",
+                    "average_sentiment": avg_sent,
+                    "positive_count": int(overall.get('positive_count', 0)),
+                    "negative_count": int(overall.get('negative_count', 0)),
+                    "neutral_count": int(overall.get('neutral_count', 0)),
+                    "total_count": int(overall.get('total_articles', 0)),
+                    "ollama_analyzed": int(overall.get('ollama_analyzed', 0)),
+                    "avg_confidence": float(overall.get('avg_confidence', 0.0)) if overall.get('avg_confidence') else None,
+                    "dominant_sentiment": dominant,
+                    "timestamp": overall.get('timestamp').isoformat() if overall.get('timestamp') else datetime.now().isoformat()
+                })
+
+            # Add by-coin data
+            for coin in by_coin_sentiment:
+                sentiment_data.append({
+                    "symbol": coin.get('symbol'),
+                    "time_window": f"{hours}h",
+                    "average_sentiment": float(coin.get('average_sentiment', 0.0)),
+                    "positive_count": int(coin.get('positive_count', 0)),
+                    "negative_count": int(coin.get('negative_count', 0)),
+                    "neutral_count": int(coin.get('neutral_count', 0)),
+                    "total_count": int(coin.get('mention_count', 0)),
+                    "ollama_analyzed": int(coin.get('ollama_analyzed', 0)),
+                    "avg_confidence": float(coin.get('avg_confidence', 0.0)) if coin.get('avg_confidence') else None,
+                    "dominant_sentiment": coin.get('dominant_sentiment'),
+                    "timestamp": coin.get('timestamp').isoformat() if coin.get('timestamp') else datetime.now().isoformat()
+                })
 
         return sentiment_data
     except Exception as e:
