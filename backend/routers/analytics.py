@@ -50,7 +50,8 @@ async def get_all_predictions(
     try:
         pg_reader = get_pg_reader()
         query = f"""
-            SELECT symbol, predicted_value, confidence, prediction_type, predicted_at
+            SELECT id, symbol, predicted_value, confidence, prediction_type,
+                   predicted_at, valid_until, model_name, model_version, rmse, r2_score
             FROM ml_predictions
             WHERE valid_until > NOW()
             ORDER BY predicted_at DESC
@@ -61,15 +62,21 @@ async def get_all_predictions(
         # Group by symbol
         predictions_by_coin = {}
         for row in results:
-            coin = row[0]
+            coin = row['symbol']
             if coin not in predictions_by_coin:
                 predictions_by_coin[coin] = []
             predictions_by_coin[coin].append({
-                "symbol": row[0],
-                "predicted_value": float(row[1]) if row[1] else 0,
-                "confidence": float(row[2]) if row[2] else 0,
-                "prediction_type": row[3] or "price",
-                "predicted_at": row[4].isoformat() if row[4] else datetime.now().isoformat()
+                "id": str(row['id']) if row.get('id') else None,
+                "symbol": row['symbol'],
+                "predicted_value": float(row['predicted_value']) if row['predicted_value'] else 0,
+                "confidence": float(row['confidence']) if row['confidence'] else 0,
+                "prediction_type": row['prediction_type'] or "price",
+                "predicted_at": row['predicted_at'].isoformat() if row['predicted_at'] else datetime.now().isoformat(),
+                "valid_until": row['valid_until'].isoformat() if row.get('valid_until') else None,
+                "model_name": row.get('model_name') or "Unknown",
+                "model_version": row.get('model_version'),
+                "rmse": float(row['rmse']) if row.get('rmse') else None,
+                "r2_score": float(row['r2_score']) if row.get('r2_score') else None
             })
 
         return predictions_by_coin
@@ -100,14 +107,19 @@ async def get_all_anomalies(
 
         anomalies = []
         for row in results:
+            # Create metadata with extra fields
+            metadata = {
+                "id": str(row['id']),
+                "anomaly_score": float(row['anomaly_score']) if row['anomaly_score'] else 0.0
+            }
+
             anomalies.append(Anomaly(
-                id=str(row[0]),
-                coin_id=row[1],  # Using symbol as coin_id for backwards compatibility
-                anomaly_type=row[2] or "unknown",
-                severity=row[3] or "medium",
-                description=row[4] or "Anomaly detected",
-                anomaly_score=float(row[5]) if row[5] else 0.0,
-                timestamp=row[6].isoformat() if row[6] else datetime.now().isoformat()
+                symbol=row['symbol'],
+                anomaly_type=row['anomaly_type'] or "unknown",
+                severity=row['severity'] or "medium",
+                description=row['description'] or "Anomaly detected",
+                detected_at=row['detected_at'] if row['detected_at'] else datetime.now(),
+                metadata=metadata
             ))
 
         return anomalies

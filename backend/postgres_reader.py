@@ -71,15 +71,18 @@ class PostgreSQLReader:
         conn = None
         try:
             conn = self.get_connection()
-            cursor = conn.cursor()
+            cursor = conn.cursor()  # RealDictCursor from pool config
             if params:
                 cursor.execute(sql, params)
             else:
                 cursor.execute(sql)
             results = cursor.fetchall()
+            logger.info(f"Query returned {len(results)} rows")
             return results
         except Exception as e:
             logger.error(f"Error executing query: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
         finally:
             if conn:

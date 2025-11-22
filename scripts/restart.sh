@@ -68,9 +68,13 @@ done
 # Stop services
 log "Stopping current services..."
 if [ "$CLEAN_VOLUMES" = true ]; then
-    ./scripts/stop.sh --volumes
+    log "Removing all containers and volumes..."
+    docker-compose down -v --remove-orphans
+    log "✓ Containers and volumes removed"
 else
-    ./scripts/stop.sh
+    log "Removing containers..."
+    docker-compose down --remove-orphans
+    log "✓ Containers removed"
 fi
 
 # Rebuild if requested

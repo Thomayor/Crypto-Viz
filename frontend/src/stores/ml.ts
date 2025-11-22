@@ -93,11 +93,22 @@ export const useMLStore = defineStore('ml', () => {
       loading.value = true
       error.value = null
 
-      const params = new URLSearchParams()
-      if (symbol) params.append('symbol', symbol)
+      const response = await api.getPredictions()
 
-      const response = await api.get(`/analytics/ml/predictions?${params}`)
-      predictions.value = response.data
+      // Response is an object with symbol keys, flatten to array
+      const allPredictions: MLPrediction[] = []
+      if (response && typeof response === 'object') {
+        Object.entries(response).forEach(([sym, preds]: [string, any]) => {
+          if (Array.isArray(preds)) {
+            // Filter by symbol if specified
+            if (!symbol || sym === symbol) {
+              allPredictions.push(...preds)
+            }
+          }
+        })
+      }
+
+      predictions.value = allPredictions
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch predictions'
       console.error('Error fetching predictions:', err)
@@ -111,12 +122,28 @@ export const useMLStore = defineStore('ml', () => {
       loading.value = true
       error.value = null
 
-      const params = new URLSearchParams()
-      if (severity) params.append('severity', severity)
-      if (symbol) params.append('symbol', symbol)
+      const response = await api.getAnomalies(symbol)
 
-      const response = await api.get(`/analytics/ml/anomalies?${params}`)
-      anomalies.value = response.data
+      //  Response is already an array
+      let allAnomalies: Anomaly[] = Array.isArray(response) ? response : []
+
+      // Transform metadata format to include id and anomaly_score at root level
+      allAnomalies = allAnomalies.map((a: any) => ({
+        id: a.metadata?.id || a.id || '',
+        symbol: a.symbol,
+        anomaly_type: a.anomaly_type,
+        severity: a.severity,
+        anomaly_score: a.metadata?.anomaly_score || a.anomaly_score || 0,
+        description: a.description,
+        detected_at: a.detected_at
+      }))
+
+      // Filter by severity if specified
+      if (severity) {
+        allAnomalies = allAnomalies.filter(a => a.severity === severity)
+      }
+
+      anomalies.value = allAnomalies
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch anomalies'
       console.error('Error fetching anomalies:', err)
@@ -130,8 +157,8 @@ export const useMLStore = defineStore('ml', () => {
       loading.value = true
       error.value = null
 
-      const response = await api.get('/analytics/ml/clusters')
-      clusters.value = response.data
+      const response = await api.get('/api/analytics/ml/clusters')
+      clusters.value = response
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch clusters'
       console.error('Error fetching clusters:', err)
@@ -145,8 +172,8 @@ export const useMLStore = defineStore('ml', () => {
       loading.value = true
       error.value = null
 
-      const response = await api.get('/analytics/ml/clusters/statistics')
-      clusterStatistics.value = response.data
+      const response = await api.get('/api/analytics/ml/clusters/statistics')
+      clusterStatistics.value = response
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch cluster statistics'
       console.error('Error fetching cluster statistics:', err)
@@ -165,8 +192,8 @@ export const useMLStore = defineStore('ml', () => {
         params.append('symbols', symbols.join(','))
       }
 
-      const response = await api.get(`/analytics/ml/correlations/matrix?${params}`)
-      correlationMatrix.value = response.data
+      const response = await api.get(`/api/analytics/ml/correlations/matrix?${params}`)
+      correlationMatrix.value = response
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch correlation matrix'
       console.error('Error fetching correlation matrix:', err)
@@ -181,8 +208,8 @@ export const useMLStore = defineStore('ml', () => {
       error.value = null
 
       // Using existing momentum endpoint from analytics
-      const response = await api.get('/analytics/momentum')
-      momentumScores.value = response.data
+      const response = await api.get('/api/analytics/momentum')
+      momentumScores.value = response
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch momentum scores'
       console.error('Error fetching momentum scores:', err)
@@ -196,7 +223,7 @@ export const useMLStore = defineStore('ml', () => {
       loading.value = true
       error.value = null
 
-      await api.post(`/analytics/ml/anomalies/${anomalyId}/resolve`, {
+      await api.post(`/api/analytics/ml/anomalies/${anomalyId}/resolve`, {
         resolution_notes: notes
       })
 

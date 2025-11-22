@@ -36,14 +36,14 @@
       <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
         <div class="text-sm text-gray-600 dark:text-gray-400">Predicted Price</div>
         <div class="text-2xl font-bold text-blue-600">
-          ${{ latestPrediction.predicted_value.toFixed(2) }}
+          ${{ (latestPrediction.predicted_value || 0).toFixed(2) }}
         </div>
       </div>
 
       <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
         <div class="text-sm text-gray-600 dark:text-gray-400">Confidence</div>
         <div class="text-2xl font-bold text-green-600">
-          {{ (latestPrediction.confidence * 100).toFixed(1) }}%
+          {{ ((latestPrediction.confidence || 0) * 100).toFixed(1) }}%
         </div>
       </div>
 
@@ -106,18 +106,18 @@
                 {{ formatDate(prediction.predicted_at) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">
-                ${{ prediction.predicted_value.toFixed(2) }}
+                ${{ (prediction.predicted_value || 0).toFixed(2) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                   <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
                     <div
                       class="bg-green-600 h-2 rounded-full"
-                      :style="{ width: `${prediction.confidence * 100}%` }"
+                      :style="{ width: `${(prediction.confidence || 0) * 100}%` }"
                     ></div>
                   </div>
                   <span class="text-sm text-gray-700 dark:text-gray-300">
-                    {{ (prediction.confidence * 100).toFixed(0) }}%
+                    {{ ((prediction.confidence || 0) * 100).toFixed(0) }}%
                   </span>
                 </div>
               </td>
@@ -147,10 +147,10 @@
           </h4>
           <p class="text-sm text-blue-800 dark:text-blue-300">
             Predictions are generated using {{ latestPrediction.model_name }} trained on historical price data.
-            The confidence score indicates model certainty ({{ (latestPrediction.confidence * 100).toFixed(0) }}%).
+            The confidence score indicates model certainty ({{ ((latestPrediction.confidence || 0) * 100).toFixed(0) }}%).
             <span v-if="latestPrediction.r2_score">
-              R² score of {{ latestPrediction.r2_score.toFixed(3) }} indicates
-              {{ latestPrediction.r2_score > 0.8 ? 'high' : latestPrediction.r2_score > 0.5 ? 'moderate' : 'low' }} model accuracy.
+              R² score of {{ (latestPrediction.r2_score || 0).toFixed(3) }} indicates
+              {{ (latestPrediction.r2_score || 0) > 0.8 ? 'high' : (latestPrediction.r2_score || 0) > 0.5 ? 'moderate' : 'low' }} model accuracy.
             </span>
           </p>
         </div>

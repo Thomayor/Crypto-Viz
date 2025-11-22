@@ -55,7 +55,7 @@
 
         <StatsCard
           label="Sentiment Analysis"
-          :value="fearGreedIndex.toFixed(0)"
+          :value="(fearGreedIndex || 0).toFixed(0)"
           :change="2.1"
           :icon="FaceSmileIcon"
           :icon-color="getFearGreedColor(averageSentiment)"
@@ -195,7 +195,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <div
             v-for="(anomaly, index) in filteredAnomalies.slice(0, 9)"
-            :key="anomaly.id"
+            :key="anomaly.metadata?.id || index"
             class="anomaly-card"
             :style="{ animationDelay: `${index * 0.05}s` }"
           >
@@ -205,16 +205,16 @@
                 {{ anomaly.severity }}
               </div>
               <div class="text-xs text-gray-400">
-                {{ formatDate(anomaly.timestamp) }}
+                {{ formatDate(anomaly.detected_at) }}
               </div>
             </div>
 
-            <h4 class="font-semibold text-white mb-2">{{ anomaly.coin_id }}</h4>
+            <h4 class="font-semibold text-white mb-2">{{ anomaly.symbol }}</h4>
             <p class="text-sm text-gray-400 mb-3">{{ anomaly.description }}</p>
 
             <div class="flex items-center justify-between pt-3 border-t border-gray-700/50">
               <div class="text-xs text-gray-500">Anomaly Score</div>
-              <div class="text-sm font-bold text-white">{{ anomaly.anomaly_score.toFixed(2) }}</div>
+              <div class="text-sm font-bold text-white">{{ (anomaly.metadata?.anomaly_score || 0).toFixed(2) }}</div>
             </div>
           </div>
 
