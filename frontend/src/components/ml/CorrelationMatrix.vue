@@ -30,45 +30,48 @@
     </div>
 
     <!-- Heatmap -->
-    <div v-if="matrix" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 overflow-x-auto">
-      <div class="min-w-max">
-        <!-- Header row -->
-        <div class="flex">
-          <div class="w-16"></div>
-          <div
-            v-for="symbol in matrix.symbols"
-            :key="symbol"
-            class="w-20 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 pb-2"
-          >
-            {{ symbol }}
-          </div>
-        </div>
-
-        <!-- Matrix rows -->
-        <div
-          v-for="(row, rowIndex) in matrix.matrix"
-          :key="row.symbol"
-          class="flex"
-        >
-          <div class="w-16 flex items-center justify-end pr-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-            {{ row.symbol }}
-          </div>
-          <div
-            v-for="(value, symbol) in row.correlations"
-            :key="symbol"
-            class="w-20 h-16 border border-gray-200 dark:border-gray-700 relative group cursor-pointer"
-            :style="{ backgroundColor: getColor(value) }"
-            @click="showDetails(row.symbol, symbol, value)"
-          >
-            <div class="absolute inset-0 flex items-center justify-center text-xs font-semibold"
-                 :class="getTextColor(value)">
-              {{ value !== null ? value.toFixed(2) : 'N/A' }}
+    <div v-if="matrix" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <!-- Matrix container with horizontal centering -->
+      <div class="overflow-x-auto flex justify-center">
+        <div class="min-w-max">
+          <!-- Header row -->
+          <div class="flex">
+            <div class="w-16"></div>
+            <div
+              v-for="symbol in matrix.symbols"
+              :key="symbol"
+              class="w-20 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 pb-2"
+            >
+              {{ symbol }}
             </div>
+          </div>
 
-            <!-- Tooltip -->
-            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-              <div class="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                {{ row.symbol }} ↔ {{ symbol }}: {{ value !== null ? value.toFixed(3) : 'N/A' }}
+          <!-- Matrix rows -->
+          <div
+            v-for="(row, rowIndex) in matrix.matrix"
+            :key="row.symbol"
+            class="flex"
+          >
+            <div class="w-16 flex items-center justify-end pr-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+              {{ row.symbol }}
+            </div>
+            <div
+              v-for="(value, symbol) in row.correlations"
+              :key="symbol"
+              class="w-20 h-16 border border-gray-200 dark:border-gray-700 relative group cursor-pointer"
+              :style="{ backgroundColor: getColor(value) }"
+              @click="showDetails(row.symbol, symbol, value)"
+            >
+              <div class="absolute inset-0 flex items-center justify-center text-xs font-semibold"
+                   :class="getTextColor(value)">
+                {{ value !== null ? value.toFixed(2) : 'N/A' }}
+              </div>
+
+              <!-- Tooltip -->
+              <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                <div class="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                  {{ row.symbol }} ↔ {{ symbol }}: {{ value !== null ? value.toFixed(3) : 'N/A' }}
+                </div>
               </div>
             </div>
           </div>
