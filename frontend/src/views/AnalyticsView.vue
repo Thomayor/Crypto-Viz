@@ -172,11 +172,6 @@
         <CorrelationMatrix />
       </div>
 
-      <!-- Clustering Visualization Component -->
-      <div class="glass-card p-6 mb-8">
-        <ClusteringViz />
-      </div>
-
       <!-- ML Anomaly Alerts Component (replaces old anomalies section) -->
       <div class="mb-8">
         <AnomalyAlerts />
@@ -253,7 +248,6 @@ import StatsCard from '@/components/ui/StatsCard.vue'
 import ApexLineChart from '@/components/charts/ApexLineChart.vue'
 import FearGreedGauge from '@/components/charts/FearGreedGauge.vue'
 import SentimentMethodBadge from '@/components/SentimentMethodBadge.vue'
-import ClusteringViz from '@/components/ml/ClusteringViz.vue'
 import PredictionChart from '@/components/ml/PredictionChart.vue'
 import CorrelationMatrix from '@/components/ml/CorrelationMatrix.vue'
 import AnomalyAlerts from '@/components/ml/AnomalyAlerts.vue'
@@ -354,19 +348,24 @@ const getSeverityClass = (severity: string) => {
 
 // Chart data
 const predictionChartData = computed(() => {
-  if (!analyticsStore.predictions) return []
+  // Use mlStore instead of analyticsStore
+  if (!mlStore.predictions || mlStore.predictions.length === 0) return []
 
-  // Get predictions for selected coin or first coin
-  const predictions = selectedCoin.value
-    ? analyticsStore.getPredictionsForSymbol(selectedCoin.value)
-    : Object.values(analyticsStore.predictions)[0] || []
+  // Filter predictions by selected coin if any
+  let predictions = mlStore.predictions
+  if (selectedCoin.value) {
+    predictions = predictions.filter((p: any) => p.symbol === selectedCoin.value.toUpperCase())
+  }
 
-  if (!predictions || predictions.length === 0) return []
+  if (predictions.length === 0) return []
 
-  return predictions.map((p: any) => ({
-    timestamp: p.timestamp,
-    value: p.predicted_price
-  }))
+  // Filter only price predictions and map to chart format
+  return predictions
+    .filter((p: any) => p.prediction_type === 'price')
+    .map((p: any) => ({
+      timestamp: p.predicted_at,
+      value: p.predicted_value
+    }))
 })
 
 const sentimentChartData = computed(() => {
