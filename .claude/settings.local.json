@@ -26,7 +26,12 @@
       "Bash(tee:*)",
       "Bash(ssh:*)",
       "Bash(timeout 10 docker logs:*)",
-      "Bash(git -c color.status=always status --short)"
+      "Bash(git -c color.status=always status --short)",
+      "Bash(docker restart:*)",
+      "Bash(git add:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker-compose exec:*)",
+      "Bash(timeout 10 docker-compose logs:*)"
     ],
     "deny": [],
     "ask": []

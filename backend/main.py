@@ -58,6 +58,15 @@ async def lifespan(app: FastAPI):
         set_markets_pg_reader(pg_reader)
         logger.info("✓ PostgreSQL reader initialized")
 
+        # Run database migrations to ensure all views exist
+        try:
+            from run_migrations import run_migrations
+            run_migrations()
+            logger.info("✓ Database migrations completed")
+        except Exception as migration_error:
+            logger.warning(f"Migration warning: {migration_error}")
+            logger.info("Continuing startup...")
+
         # Initialize cache
         cache = get_cache()
         logger.info(f"✓ Redis cache initialized: {cache.get_stats()}")

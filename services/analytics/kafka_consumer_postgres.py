@@ -68,7 +68,7 @@ class CryptoKafkaConsumer:
                     *self.topics,
                     bootstrap_servers=self.bootstrap_servers,
                     group_id=self.group_id,
-                    auto_offset_reset='latest',
+                    auto_offset_reset='earliest',  # Read from beginning after restart
                     enable_auto_commit=True,
                     auto_commit_interval_ms=5000,
                     value_deserializer=lambda m: json.loads(m.decode('utf-8')),

@@ -184,15 +184,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useMLStore } from '@/stores/ml'
+
+// Props from parent component
+interface Props {
+  timeRange?: string
+  hours?: number
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  timeRange: '24h',
+  hours: 24
+})
 
 const mlStore = useMLStore()
 
 const loading = ref(false)
 const severityFilter = ref('')
 
-const anomalies = computed(() => mlStore.anomalies)
+// Filter anomalies by time range
+const anomalies = computed(() => {
+  if (!mlStore.anomalies || mlStore.anomalies.length === 0) return []
+
+  // Calculate cutoff time based on time range
+  const now = new Date()
+  const cutoffTime = new Date(now.getTime() - props.hours * 60 * 60 * 1000)
+
+  // Filter by time range
+  return mlStore.anomalies.filter((a: any) => {
+    const detectedAt = new Date(a.detected_at)
+    return detectedAt >= cutoffTime
+  })
+})
 
 const criticalCount = computed(() =>
   anomalies.value.filter(a => a.severity === 'critical').length
@@ -273,6 +297,11 @@ function formatDate(dateString: string): string {
   if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
   return 'Just now'
 }
+
+// Watch for time range changes to reload data
+watch(() => props.timeRange, async () => {
+  await loadAnomalies()
+})
 
 onMounted(() => {
   loadAnomalies()

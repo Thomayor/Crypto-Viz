@@ -1,32 +1,12 @@
 <template>
   <div class="prediction-chart">
-    <div class="flex justify-between items-center mb-4">
-      <div>
-        <h3 class="text-xl font-semibold text-white">
-          Price Predictions
-        </h3>
-        <p class="text-sm text-gray-400">
-          ML-powered price forecasting with confidence intervals
-        </p>
-      </div>
-      <div class="flex gap-2">
-        <select
-          v-model="selectedSymbol"
-          @change="loadPredictions"
-          class="px-3 py-2 bg-gray-800 text-white border border-gray-700 rounded-lg"
-        >
-          <option v-for="symbol in availableSymbols" :key="symbol" :value="symbol">
-            {{ getCryptoName(symbol) }}
-          </option>
-        </select>
-        <button
-          @click="loadPredictions"
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          :disabled="loading"
-        >
-          Refresh
-        </button>
-      </div>
+    <div class="mb-4">
+      <h3 class="text-xl font-semibold text-white">
+        Price Predictions
+      </h3>
+      <p class="text-sm text-gray-400">
+        ML-powered price forecasting with confidence intervals
+      </p>
     </div>
 
     <!-- Model Performance Metrics -->
@@ -158,58 +138,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useMLStore } from '@/stores/ml'
-import { useCryptoStore } from '@/stores/crypto'
 
-const mlStore = useMLStore()
-const cryptoStore = useCryptoStore()
-
-const loading = ref(false)
-const selectedSymbol = ref('BTC')
-
-// Crypto name mapping
-const cryptoNames: Record<string, string> = {
-  'BTC': 'Bitcoin (BTC)',
-  'ETH': 'Ethereum (ETH)',
-  'USDT': 'Tether USDT (USDT)',
-  'XRP': 'XRP (XRP)',
-  'BNB': 'BNB (BNB)',
-  'USDC': 'USDC (USDC)',
-  'SOL': 'Solana (SOL)',
-  'ADA': 'Cardano (ADA)',
-  'DOT': 'Polkadot (DOT)',
-  'LINK': 'Chainlink (LINK)',
-  'LTC': 'Litecoin (LTC)',
+// Props from parent component
+interface Props {
+  selectedCrypto?: string
+  timeRange?: string
+  hours?: number
 }
 
-// Get available symbols from both crypto store (tracked coins) and ML predictions
-const availableSymbols = computed(() => {
-  // Get symbols from crypto store (these are the ones being tracked)
-  const trackedSymbols = cryptoStore.prices.map(p => p.symbol).filter(Boolean)
-
-  // Get unique symbols, prioritizing tracked coins
-  const uniqueSymbols = [...new Set(trackedSymbols)]
-
-  // Sort alphabetically, but put BTC first, ETH second
-  return uniqueSymbols.sort((a, b) => {
-    if (a === 'BTC') return -1
-    if (b === 'BTC') return 1
-    if (a === 'ETH') return -1
-    if (b === 'ETH') return 1
-    return a.localeCompare(b)
-  })
+const props = withDefaults(defineProps<Props>(), {
+  selectedCrypto: '',
+  timeRange: '24h',
+  hours: 24
 })
 
-// Get crypto display name
-function getCryptoName(symbol: string): string {
-  return cryptoNames[symbol] || `${symbol}`
-}
+const mlStore = useMLStore()
+const loading = ref(false)
 
-// Filter predictions by selected symbol locally instead of filtering the store
+// Filter predictions by selected symbol and time range from parent
 const predictions = computed(() => {
   if (!mlStore.predictions || mlStore.predictions.length === 0) return []
-  return mlStore.predictions.filter(p => p.symbol === selectedSymbol.value)
+
+  // Calculate cutoff time based on time range
+  const now = new Date()
+  const cutoffTime = new Date(now.getTime() - props.hours * 60 * 60 * 1000)
+
+  // Filter by symbol if selected
+  let filtered = mlStore.predictions
+  if (props.selectedCrypto) {
+    filtered = filtered.filter((p: any) => p.symbol === props.selectedCrypto.toUpperCase())
+  }
+
+  // Filter by time range
+  filtered = filtered.filter((p: any) => {
+    const predictedAt = new Date(p.predicted_at)
+    return predictedAt >= cutoffTime
+  })
+
+  return filtered
 })
 
 const latestPrediction = computed(() =>
@@ -237,6 +205,11 @@ function formatDate(dateString: string): string {
     minute: '2-digit'
   })
 }
+
+// Watch for prop changes to reload data
+watch(() => [props.selectedCrypto, props.timeRange], async () => {
+  await loadPredictions()
+})
 
 onMounted(() => {
   loadPredictions()

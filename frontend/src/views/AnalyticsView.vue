@@ -152,7 +152,7 @@
             <p class="text-sm text-gray-400">What emotion is driving the market now?</p>
           </div>
           <FearGreedGauge
-            v-if="analyticsStore.sentiment && analyticsStore.sentiment.length > 0"
+            v-if="filteredSentiment && filteredSentiment.length > 0"
             :value="fearGreedIndex"
             :data-points="totalArticles"
             :ollama-analyzed="ollamaAnalyzed"
@@ -173,7 +173,11 @@
 
       <!-- ML Price Predictions Component -->
       <div class="glass-card p-6 mb-8">
-        <PredictionChart />
+        <PredictionChart
+          :selected-crypto="selectedCoin"
+          :time-range="analyticsTimeRange"
+          :hours="analyticsHours"
+        />
       </div>
 
       <!-- Correlation Matrix Component -->
@@ -183,7 +187,10 @@
 
       <!-- ML Anomaly Alerts Component (replaces old anomalies section) -->
       <div class="mb-8">
-        <AnomalyAlerts />
+        <AnomalyAlerts
+          :time-range="analyticsTimeRange"
+          :hours="analyticsHours"
+        />
       </div>
 
       <!-- Anomalies Section -->
@@ -291,10 +298,26 @@ usePolling(async () => {
 }, 60000)
 
 // Computed properties
+
+// Filter sentiment by time range
+const filteredSentiment = computed(() => {
+  if (!analyticsStore.sentiment || analyticsStore.sentiment.length === 0) return []
+
+  // Calculate cutoff time based on selected time range
+  const now = new Date()
+  const cutoffTime = new Date(now.getTime() - analyticsHours.value * 60 * 60 * 1000)
+
+  // Filter by time range using timestamp field
+  return analyticsStore.sentiment.filter(s => {
+    const timestamp = new Date(s.timestamp)
+    return timestamp >= cutoffTime
+  })
+})
+
 const averageSentiment = computed(() => {
-  if (!analyticsStore.sentiment || analyticsStore.sentiment.length === 0) return 0.5
-  const sum = analyticsStore.sentiment.reduce((acc, s) => acc + (s.average_sentiment || 0), 0)
-  return sum / analyticsStore.sentiment.length
+  if (!filteredSentiment.value || filteredSentiment.value.length === 0) return 0.5
+  const sum = filteredSentiment.value.reduce((acc, s) => acc + (s.average_sentiment || 0), 0)
+  return sum / filteredSentiment.value.length
 })
 
 // Convert sentiment to Fear & Greed index (0-100)
@@ -323,20 +346,20 @@ const getFearGreedColor = (score: number) => {
   return 'cyan'
 }
 
-// Statistics for gauge
+// Statistics for gauge - use filtered sentiment
 const totalArticles = computed(() => {
-  if (!analyticsStore.sentiment || analyticsStore.sentiment.length === 0) return 0
-  return analyticsStore.sentiment.reduce((sum, s) => sum + (s.total_count || 0), 0)
+  if (!filteredSentiment.value || filteredSentiment.value.length === 0) return 0
+  return filteredSentiment.value.reduce((sum, s) => sum + (s.total_count || 0), 0)
 })
 
 const ollamaAnalyzed = computed(() => {
-  if (!analyticsStore.sentiment || analyticsStore.sentiment.length === 0) return 0
-  return analyticsStore.sentiment.reduce((sum, s) => sum + (s.ollama_analyzed || 0), 0)
+  if (!filteredSentiment.value || filteredSentiment.value.length === 0) return 0
+  return filteredSentiment.value.reduce((sum, s) => sum + (s.ollama_analyzed || 0), 0)
 })
 
 const avgConfidence = computed(() => {
-  if (!analyticsStore.sentiment || analyticsStore.sentiment.length === 0) return 0
-  const withConfidence = analyticsStore.sentiment.filter(s => s.avg_confidence !== null && s.avg_confidence !== undefined)
+  if (!filteredSentiment.value || filteredSentiment.value.length === 0) return 0
+  const withConfidence = filteredSentiment.value.filter(s => s.avg_confidence !== null && s.avg_confidence !== undefined)
   if (withConfidence.length === 0) return 0
   const sum = withConfidence.reduce((acc, s) => acc + (s.avg_confidence || 0), 0)
   return sum / withConfidence.length
@@ -344,10 +367,22 @@ const avgConfidence = computed(() => {
 
 const filteredAnomalies = computed(() => {
   if (!analyticsStore.anomalies) return []
-  if (selectedSeverity.value === 'all') {
-    return analyticsStore.anomalies
+
+  // Calculate cutoff time based on selected time range
+  const now = new Date()
+  const cutoffTime = new Date(now.getTime() - analyticsHours.value * 60 * 60 * 1000)
+
+  // Filter by time range and severity
+  let filtered = analyticsStore.anomalies.filter(a => {
+    const detectedAt = new Date(a.detected_at)
+    return detectedAt >= cutoffTime
+  })
+
+  if (selectedSeverity.value !== 'all') {
+    filtered = filtered.filter(a => a.severity === selectedSeverity.value)
   }
-  return analyticsStore.anomalies.filter(a => a.severity === selectedSeverity.value)
+
+  return filtered
 })
 
 const getSeverityClass = (severity: string) => {
@@ -365,11 +400,21 @@ const predictionChartData = computed(() => {
   // Use mlStore instead of analyticsStore
   if (!mlStore.predictions || mlStore.predictions.length === 0) return []
 
+  // Calculate cutoff time based on selected time range
+  const now = new Date()
+  const cutoffTime = new Date(now.getTime() - analyticsHours.value * 60 * 60 * 1000)
+
   // Filter predictions by selected coin if any
   let predictions = mlStore.predictions
   if (selectedCoin.value) {
     predictions = predictions.filter((p: any) => p.symbol === selectedCoin.value.toUpperCase())
   }
+
+  // Filter by time range
+  predictions = predictions.filter((p: any) => {
+    const predictedAt = new Date(p.predicted_at)
+    return predictedAt >= cutoffTime
+  })
 
   if (predictions.length === 0) return []
 
