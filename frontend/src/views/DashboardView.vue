@@ -126,14 +126,14 @@
                   :style="{ width: `${btcDominance}%` }"
                 ></div>
               </div>
-              <div class="text-xs text-gray-500">{{ (100 - btcDominance).toFixed(1) }}% altcoins</div>
+              <div class="text-xs text-gray-400">{{ (100 - btcDominance).toFixed(1) }}% altcoins</div>
             </div>
           </div>
 
           <!-- Average RSI -->
           <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/60 rounded-xl p-6 border border-gray-700/50 hover:border-orange-500/30 transition-all">
             <div class="flex items-center justify-between mb-4">
-              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Avg. RSI (14)</div>
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Avg. RSI ({{ rsiPeriodUsed }})</div>
               <div class="p-2 bg-orange-500/10 rounded-lg">
                 <ChartBarIcon class="h-5 w-5 text-orange-400" />
               </div>
@@ -154,7 +154,7 @@
                   :style="{ width: `${averageRSI}%` }"
                 ></div>
               </div>
-              <div class="text-xs text-gray-500">
+              <div class="text-xs text-gray-400">
                 {{ averageRSI >= 70 ? 'Overbought' : averageRSI >= 50 ? 'Neutral-High' : averageRSI >= 30 ? 'Neutral-Low' : 'Oversold' }}
               </div>
             </div>
@@ -166,38 +166,49 @@
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
         <!-- Price Chart -->
         <div class="glass-card p-6">
-          <div class="mb-6 flex items-start justify-between">
-            <div class="flex-1">
-              <h3 class="text-xl font-bold text-white mb-1">
-                {{ selectedChartCoin ? (cryptoStore.prices.find(c => c.symbol === selectedChartCoin)?.name || selectedChartCoin.toUpperCase()) : 'Bitcoin' }} Price Evolution
-              </h3>
-              <p class="text-sm text-gray-400">Last 24 hours price movement</p>
-            </div>
-            <select
-              v-model="selectedChartCoin"
-              @change="handleChartCoinChange"
-              class="px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm
-                     hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent
-                     transition-all duration-200"
-            >
-              <option
-                v-for="coin in cryptoStore.prices.slice(0, 20)"
-                :key="coin.id"
-                :value="coin.symbol"
+          <div class="mb-4 flex flex-col gap-4">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <h3 class="text-xl font-bold text-white mb-1">
+                  {{ selectedChartCoin ? (cryptoStore.prices.find(c => c.symbol === selectedChartCoin)?.name || selectedChartCoin.toUpperCase()) : 'Bitcoin' }} Price Evolution
+                </h3>
+                <p class="text-sm text-gray-400">Price movement over {{ priceTimeLabel.toLowerCase() }}</p>
+              </div>
+              <select
+                v-model="selectedChartCoin"
+                @change="handleChartCoinChange"
+                class="px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm
+                       hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent
+                       transition-all duration-200 cursor-pointer"
               >
-                {{ coin.name }} ({{ coin.symbol.toUpperCase() }})
-              </option>
-            </select>
+                <option
+                  v-for="coin in cryptoStore.prices.slice(0, 20)"
+                  :key="coin.id"
+                  :value="coin.symbol"
+                >
+                  {{ coin.name }} ({{ coin.symbol.toUpperCase() }})
+                </option>
+              </select>
+            </div>
+            <div class="flex justify-start">
+              <TimeRangeSelector
+                v-model="priceTimeRange"
+                :options="['1h', '4h', '12h', '24h', '7d', '30d']"
+              />
+            </div>
+          </div>
+          <div v-if="priceHistoryLoading" class="flex items-center justify-center h-[300px]">
+            <LoadingSpinner message="Loading chart data..." />
           </div>
           <ApexAreaChart
-            v-if="priceHistoryData.length > 0"
+            v-else-if="priceHistoryData.length > 0"
             :data="priceHistoryData"
             :colors="['#06B6D4', '#3B82F6']"
             :height="300"
             y-axis-label="Price (USD)"
           />
           <div v-else class="flex items-center justify-center h-[300px] text-gray-400">
-            Loading price data...
+            No price data available
           </div>
         </div>
 
@@ -349,14 +360,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useCryptoStore } from '@/stores/crypto'
 import { useAnalyticsStore } from '@/stores/analytics'
 import { useFormatting } from '@/composables/useFormatting'
 import { usePolling } from '@/composables/usePolling'
+import { useTimeRange, type TimeRangeValue } from '@/composables/useTimeRange'
+import { api } from '@/services/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import StatsCard from '@/components/ui/StatsCard.vue'
 import CryptoCard from '@/components/ui/CryptoCard.vue'
+import TimeRangeSelector from '@/components/ui/TimeRangeSelector.vue'
 import ApexAreaChart from '@/components/charts/ApexAreaChart.vue'
 import DoughnutChart from '@/components/charts/DoughnutChart.vue'
 import {
@@ -373,6 +387,10 @@ import {
 const cryptoStore = useCryptoStore()
 const analyticsStore = useAnalyticsStore()
 
+// RSI data state
+const rsiDailyData = ref<any>(null)
+const rsiPeriodUsed = ref(14)
+
 const {
   formatPrice,
   formatNumber,
@@ -383,6 +401,22 @@ const {
 // Number of displayed cryptos (for load more functionality)
 const displayedCryptos = ref(20)
 
+// Function to fetch RSI daily data
+async function fetchRSIDailyData() {
+  try {
+    const data = await api.getDailyPricesForRSI(14)
+    rsiDailyData.value = data
+
+    // Calculate the actual period used (minimum days available across all coins)
+    if (data.coins && Object.keys(data.coins).length > 0) {
+      const daysAvailable = Object.values(data.coins).map((coin: any) => coin.days_available || 0)
+      rsiPeriodUsed.value = Math.min(...daysAvailable)
+    }
+  } catch (error) {
+    console.error('Error fetching RSI daily data:', error)
+  }
+}
+
 // Polling for real-time updates
 usePolling(async () => {
   await cryptoStore.fetchLatestPrices(50)
@@ -391,6 +425,11 @@ usePolling(async () => {
 usePolling(async () => {
   await analyticsStore.fetchAnomalies()
 }, 60000)
+
+// Poll RSI data every 5 minutes (less frequent since it's daily data)
+usePolling(async () => {
+  await fetchRSIDailyData()
+}, 300000)
 
 // Computed properties
 const averageSentimentScore = computed(() => {
@@ -416,16 +455,24 @@ const btcDominance = computed(() => {
   return totalMarketCap > 0 ? parseFloat(((bitcoin.market_cap / totalMarketCap) * 100).toFixed(1)) : 0
 })
 
-// Average RSI calculation (Relative Strength Index)
-const averageRSI = computed(() => {
-  if (cryptoStore.prices.length === 0) return 50
+// Helper function to calculate RSI for a single coin
+function calculateRSI(dailyPrices: number[]): number {
+  if (dailyPrices.length < 2) return 50
 
-  // Calculate RSI based on 24h price changes
+  // Calculate daily changes
+  const changes: number[] = []
+  for (let i = 1; i < dailyPrices.length; i++) {
+    const change = dailyPrices[i] - dailyPrices[i - 1]
+    changes.push(change)
+  }
+
+  if (changes.length === 0) return 50
+
+  // Separate gains and losses
   const gains: number[] = []
   const losses: number[] = []
 
-  cryptoStore.prices.forEach(coin => {
-    const change = coin.price_change_percentage_24h || 0
+  changes.forEach(change => {
     if (change > 0) {
       gains.push(change)
     } else if (change < 0) {
@@ -435,20 +482,75 @@ const averageRSI = computed(() => {
 
   if (gains.length === 0 && losses.length === 0) return 50
 
+  // Calculate average gain and loss
   const avgGain = gains.length > 0 ? gains.reduce((a, b) => a + b, 0) / gains.length : 0
   const avgLoss = losses.length > 0 ? losses.reduce((a, b) => a + b, 0) / losses.length : 0
 
   if (avgLoss === 0) return 100
+  if (avgGain === 0) return 0
+
+  // Calculate RSI
   const rs = avgGain / avgLoss
   const rsi = 100 - (100 / (1 + rs))
 
-  return parseFloat(rsi.toFixed(1))
+  return rsi
+}
+
+// Average RSI calculation (Relative Strength Index) - Now with historical data
+const averageRSI = computed(() => {
+  if (!rsiDailyData.value || !rsiDailyData.value.coins) {
+    return 50
+  }
+
+  const coins = rsiDailyData.value.coins
+  const rsiValues: number[] = []
+
+  // Calculate RSI for each coin
+  Object.values(coins).forEach((coinData: any) => {
+    if (coinData.daily_prices && coinData.daily_prices.length >= 2) {
+      const rsi = calculateRSI(coinData.daily_prices)
+      rsiValues.push(rsi)
+    }
+  })
+
+  if (rsiValues.length === 0) return 50
+
+  // Calculate average RSI across all coins
+  const avgRSI = rsiValues.reduce((a, b) => a + b, 0) / rsiValues.length
+
+  return parseFloat(avgRSI.toFixed(1))
 })
 
 // Mock trend data for sparklines
 const marketCapTrend = ref([1.2, 1.3, 1.25, 1.4, 1.5, 1.45, 1.6, 1.7])
 const volumeTrend = ref([100, 110, 95, 120, 130, 125, 140, 150])
 const selectedChartCoin = ref('BTC')
+
+// Time range for price chart
+const { selectedRange: priceTimeRange, hours: priceHours, label: priceTimeLabel } = useTimeRange('24h')
+const priceHistoryLoading = ref(false)
+const priceHistoryFromAPI = ref<any[]>([])
+
+// Fetch price history based on selected time range
+async function fetchPriceHistory() {
+  if (!selectedChartCoin.value) return
+
+  priceHistoryLoading.value = true
+  try {
+    const response = await api.getPriceHistory(selectedChartCoin.value, priceHours.value)
+    priceHistoryFromAPI.value = response.prices || []
+  } catch (error) {
+    console.error('Error fetching price history:', error)
+    priceHistoryFromAPI.value = []
+  } finally {
+    priceHistoryLoading.value = false
+  }
+}
+
+// Watch for changes in time range or selected coin
+watch([priceTimeRange, selectedChartCoin], () => {
+  fetchPriceHistory()
+}, { immediate: false })
 
 // Market distribution data for doughnut chart
 const marketDistributionData = computed(() => {
@@ -464,19 +566,31 @@ const marketDistributionData = computed(() => {
   }))
 })
 
-// Price history data for chart
+// Price history data for chart - use API data if available, otherwise generate mock data
 const priceHistoryData = computed(() => {
+  // If we have API data, use it
+  if (priceHistoryFromAPI.value.length > 0) {
+    return priceHistoryFromAPI.value.map((p: any) => ({
+      timestamp: new Date(p.timestamp),
+      value: parseFloat(p.price) || p.current_price || 0
+    }))
+  }
+
+  // Fallback to mock data
   if (cryptoStore.prices.length === 0) return []
 
-  // Find selected coin by symbol
   const selectedCoin = cryptoStore.prices.find(c => c.symbol === selectedChartCoin.value)
   if (!selectedCoin) return []
 
   const now = new Date()
   const data = []
+  const hoursToShow = priceHours.value
+
+  // Calculate interval based on time range
+  const intervalMs = (hoursToShow * 3600000) / 24 // Always show ~24 data points
 
   for (let i = 24; i >= 0; i--) {
-    const timestamp = new Date(now.getTime() - i * 3600000) // Hourly data
+    const timestamp = new Date(now.getTime() - i * intervalMs)
     const price = selectedCoin.current_price || selectedCoin.price || 0
     const randomVariation = (Math.random() - 0.5) * price * 0.02
     data.push({
@@ -499,8 +613,11 @@ onMounted(async () => {
   await Promise.all([
     cryptoStore.fetchLatestPrices(50),
     analyticsStore.fetchSentiment(),
-    analyticsStore.fetchAnomalies()
+    analyticsStore.fetchAnomalies(),
+    fetchRSIDailyData()
   ])
+  // Fetch initial price history
+  await fetchPriceHistory()
 })
 </script>
 

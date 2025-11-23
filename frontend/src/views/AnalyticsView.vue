@@ -84,27 +84,36 @@
         </StatsCard>
       </div>
 
-      <!-- Coin Selector -->
+      <!-- Filters Section -->
       <div class="glass-card p-6 mb-8">
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-lg font-bold text-white mb-1">Select Cryptocurrency</h3>
-            <p class="text-sm text-gray-400">Choose a coin to view detailed analytics</p>
-          </div>
-          <select
-            v-model="selectedCoin"
-            class="select-input"
-            @change="handleCoinChange"
-          >
-            <option value="">All Cryptocurrencies</option>
-            <option
-              v-for="coin in cryptoStore.prices.slice(0, 20)"
-              :key="coin.id"
-              :value="coin.symbol"
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-white mb-1">Analytics Filters</h3>
+              <p class="text-sm text-gray-400">Configure time range and cryptocurrency</p>
+            </div>
+            <select
+              v-model="selectedCoin"
+              class="select-input"
+              @change="handleCoinChange"
             >
-              {{ coin.name }} ({{ coin.symbol.toUpperCase() }})
-            </option>
-          </select>
+              <option value="">All Cryptocurrencies</option>
+              <option
+                v-for="coin in cryptoStore.prices.slice(0, 20)"
+                :key="coin.id"
+                :value="coin.symbol"
+              >
+                {{ coin.name }} ({{ coin.symbol.toUpperCase() }})
+              </option>
+            </select>
+          </div>
+          <div class="flex items-center justify-between border-t border-gray-700/50 pt-4">
+            <div class="text-sm text-gray-400">Time Range: <span class="text-white font-medium">{{ analyticsTimeLabel }}</span></div>
+            <TimeRangeSelector
+              v-model="analyticsTimeRange"
+              :options="['1h', '4h', '12h', '24h', '7d', '30d']"
+            />
+          </div>
         </div>
       </div>
 
@@ -129,8 +138,8 @@
             <p class="text-lg font-semibold text-gray-300 mb-2">Aucune prédiction disponible</p>
             <p class="text-sm text-gray-400">
               {{ selectedCoin
-                ? `Désolé, il n'y a pas de prédictions de prix ML pour ${selectedCoin.toUpperCase()} sur les dernières 24 heures.`
-                : 'Désolé, il n\'y a pas de prédictions de prix ML sur les dernières 24 heures.'
+                ? `Désolé, il n'y a pas de prédictions de prix ML pour ${selectedCoin.toUpperCase()} sur ${analyticsTimeLabel.toLowerCase()}.`
+                : `Désolé, il n'y a pas de prédictions de prix ML sur ${analyticsTimeLabel.toLowerCase()}.`
               }}
             </p>
           </div>
@@ -154,8 +163,8 @@
             <p class="text-lg font-semibold text-gray-300 mb-2">Aucune donnée disponible</p>
             <p class="text-sm text-gray-400">
               {{ selectedCoin
-                ? `Désolé, il n'y a pas de données d'analyse de sentiment pour ${selectedCoin.toUpperCase()} sur les dernières 24 heures.`
-                : 'Désolé, il n\'y a pas de données d\'analyse de sentiment sur les dernières 24 heures.'
+                ? `Désolé, il n'y a pas de données d'analyse de sentiment pour ${selectedCoin.toUpperCase()} sur ${analyticsTimeLabel.toLowerCase()}.`
+                : `Désolé, il n'y a pas de données d'analyse de sentiment sur ${analyticsTimeLabel.toLowerCase()}.`
               }}
             </p>
           </div>
@@ -222,7 +231,7 @@
             <p class="text-sm text-gray-400 mb-3">{{ anomaly.description }}</p>
 
             <div class="flex items-center justify-between pt-3 border-t border-gray-700/50">
-              <div class="text-xs text-gray-500">Anomaly Score</div>
+              <div class="text-xs text-gray-400">Anomaly Score</div>
               <div class="text-sm font-bold text-white">{{ (anomaly.metadata?.anomaly_score || 0).toFixed(2) }}</div>
             </div>
           </div>
@@ -237,14 +246,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAnalyticsStore } from '@/stores/analytics'
 import { useMLStore } from '@/stores/ml'
 import { useCryptoStore } from '@/stores/crypto'
 import { useFormatting } from '@/composables/useFormatting'
 import { usePolling } from '@/composables/usePolling'
+import { useTimeRange, type TimeRangeValue } from '@/composables/useTimeRange'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import StatsCard from '@/components/ui/StatsCard.vue'
+import TimeRangeSelector from '@/components/ui/TimeRangeSelector.vue'
 import ApexLineChart from '@/components/charts/ApexLineChart.vue'
 import FearGreedGauge from '@/components/charts/FearGreedGauge.vue'
 import SentimentMethodBadge from '@/components/SentimentMethodBadge.vue'
@@ -266,6 +277,9 @@ const { formatDate } = useFormatting()
 
 const selectedCoin = ref('')
 const selectedSeverity = ref('all')
+
+// Time range for analytics
+const { selectedRange: analyticsTimeRange, hours: analyticsHours, label: analyticsTimeLabel } = useTimeRange('24h')
 
 // Polling
 usePolling(async () => {
@@ -395,9 +409,21 @@ const handleCoinChange = async () => {
   await Promise.all([
     mlStore.fetchPredictions(selectedCoin.value || undefined),
     analyticsStore.fetchAnomalies(selectedCoin.value || undefined),
-    analyticsStore.fetchSentiment(selectedCoin.value || undefined)
+    analyticsStore.fetchSentiment(selectedCoin.value || undefined, getTimeWindow())
   ])
 }
+
+// Convert hours to time window format
+const getTimeWindow = (): '24h' | '7d' | '30d' => {
+  if (analyticsHours.value <= 24) return '24h'
+  if (analyticsHours.value <= 168) return '7d'
+  return '30d'
+}
+
+// Watch for time range changes
+watch(analyticsTimeRange, async () => {
+  await analyticsStore.fetchSentiment(selectedCoin.value || undefined, getTimeWindow())
+})
 
 // Initial fetch
 onMounted(async () => {

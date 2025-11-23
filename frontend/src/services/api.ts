@@ -139,6 +139,11 @@ class ApiService {
     return this.request<Record<string, MLPrediction[]>>(`/api/analytics/all/predictions`)
   }
 
+  // RSI Daily Prices
+  async getDailyPricesForRSI(days: number = 14): Promise<any> {
+    return this.request<any>(`/api/prices/rsi/daily-prices?days=${days}`)
+  }
+
   // Generic GET method for flexibility
   async get<T = any>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint)

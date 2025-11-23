@@ -1,7 +1,7 @@
 <template>
   <div :class="containerClasses">
     <div :class="spinnerClasses"></div>
-    <p v-if="message" class="mt-4 text-sm text-gray-600">{{ message }}</p>
+    <p v-if="message" class="mt-4 text-sm text-gray-400">{{ message }}</p>
   </div>
 </template>
 

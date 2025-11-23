@@ -98,15 +98,15 @@
             <ul class="space-y-2 text-sm text-gray-500">
               <li class="flex items-center gap-2">
                 <CheckCircleIcon class="h-5 w-5 text-cyan-400" />
-                <span>Live price updates every 30s</span>
+                <span class="text-gray-400">Live price updates every 30s</span>
               </li>
               <li class="flex items-center gap-2">
                 <CheckCircleIcon class="h-5 w-5 text-cyan-400" />
-                <span>Top gainers & losers</span>
+                <span class="text-gray-400">Top gainers & losers</span>
               </li>
               <li class="flex items-center gap-2">
                 <CheckCircleIcon class="h-5 w-5 text-cyan-400" />
-                <span>Market cap tracking</span>
+                <span class="text-gray-400">Market cap tracking</span>
               </li>
             </ul>
           </div>
@@ -120,18 +120,18 @@
             <p class="text-gray-400 mb-4">
               Advanced machine learning models predict price movements and detect anomalies automatically.
             </p>
-            <ul class="space-y-2 text-sm text-gray-500">
+            <ul class="space-y-2 text-sm">
               <li class="flex items-center gap-2">
                 <CheckCircleIcon class="h-5 w-5 text-purple-400" />
-                <span>Linear Regression forecasts</span>
+                <span class="text-gray-400">Linear Regression forecasts</span>
               </li>
               <li class="flex items-center gap-2">
                 <CheckCircleIcon class="h-5 w-5 text-purple-400" />
-                <span>Anomaly detection</span>
+                <span class="text-gray-400">Anomaly detection</span>
               </li>
               <li class="flex items-center gap-2">
                 <CheckCircleIcon class="h-5 w-5 text-purple-400" />
-                <span>Confidence scoring</span>
+                <span class="text-gray-400">Confidence scoring</span>
               </li>
             </ul>
           </div>
@@ -145,18 +145,18 @@
             <p class="text-gray-400 mb-4">
               Analyze news and social media sentiment with AI-powered natural language processing.
             </p>
-            <ul class="space-y-2 text-sm text-gray-500">
+            <ul class="space-y-2 text-sm">
               <li class="flex items-center gap-2">
                 <CheckCircleIcon class="h-5 w-5 text-pink-400" />
-                <span>News sentiment scoring</span>
+                <span class="text-gray-400">News sentiment scoring</span>
               </li>
               <li class="flex items-center gap-2">
                 <CheckCircleIcon class="h-5 w-5 text-pink-400" />
-                <span>Reddit & Twitter tracking</span>
+                <span class="text-gray-400">Reddit & Twitter tracking</span>
               </li>
               <li class="flex items-center gap-2">
                 <CheckCircleIcon class="h-5 w-5 text-pink-400" />
-                <span>Trend identification</span>
+                <span class="text-gray-400">Trend identification</span>
               </li>
             </ul>
           </div>
@@ -235,7 +235,7 @@
         <div class="text-gray-400 mb-4">
           <span class="font-bold text-white">CRYPTO VIZ</span> - Real-time cryptocurrency analytics platform
         </div>
-        <div class="text-sm text-gray-600">
+        <div class="text-sm text-gray-500">
           Built for EPITECH MSc Pro Project • Powered by Bootstrap Stack (pandas, DuckDB, Spark)
         </div>
       </div>

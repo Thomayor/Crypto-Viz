@@ -76,40 +76,34 @@
       <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
         <!-- Main Chart -->
         <div class="xl:col-span-2 glass-card p-6">
-          <div class="flex items-center justify-between mb-6">
-            <div>
-              <h3 class="text-xl font-bold text-white mb-1">Price Chart</h3>
-              <p class="text-sm text-gray-400">
-                {{ selectedPeriod === '24H' ? 'Last 24 hours' :
-                   selectedPeriod === '7D' ? 'Last 7 days' :
-                   selectedPeriod === '30D' ? 'Last 30 days' :
-                   'Last year' }}
-              </p>
+          <div class="flex flex-col gap-4 mb-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-white mb-1">Price Chart</h3>
+                <p class="text-sm text-gray-400">{{ priceTimeLabel }} price movement</p>
+              </div>
             </div>
-            <div class="flex gap-2">
-              <button
-                v-for="period in ['24H', '7D', '30D', '1Y']"
-                :key="period"
-                @click="selectedPeriod = period"
-                :class="[
-                  'px-4 py-2 rounded-lg text-sm font-medium transition-all',
-                  selectedPeriod === period
-                    ? 'bg-cyan-500 text-white'
-                    : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
-                ]"
-              >
-                {{ period }}
-              </button>
+            <div class="flex justify-start">
+              <TimeRangeSelector
+                v-model="priceTimeRange"
+                :options="['1h', '4h', '12h', '24h', '7d', '30d', '90d']"
+              />
             </div>
           </div>
+          <div v-if="loadingChart" class="flex items-center justify-center h-[400px]">
+            <LoadingSpinner message="Loading chart data..." />
+          </div>
           <ApexLineChart
-            v-if="priceChartData.length > 0"
+            v-else-if="priceChartData.length > 0"
             :data="priceChartData"
             :color="(selectedCrypto.price_change_percentage_24h || 0) >= 0 ? '#10b981' : '#ef4444'"
             :height="400"
             y-axis-label="Price (USD)"
             :smooth="true"
           />
+          <div v-else class="flex items-center justify-center h-[400px] text-gray-400">
+            No price data available
+          </div>
         </div>
 
         <!-- Stats Cards -->
@@ -232,9 +226,19 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Volume Chart -->
         <div class="glass-card p-6">
-          <div class="mb-6">
-            <h3 class="text-xl font-bold text-white mb-1">Trading Volume</h3>
-            <p class="text-sm text-gray-400">24-hour trading volume trend</p>
+          <div class="flex flex-col gap-4 mb-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-white mb-1">Trading Volume</h3>
+                <p class="text-sm text-gray-400">{{ volumeTimeLabel }} volume trend</p>
+              </div>
+            </div>
+            <div class="flex justify-start">
+              <TimeRangeSelector
+                v-model="volumeTimeRange"
+                :options="['1h', '4h', '12h', '24h', '7d']"
+              />
+            </div>
           </div>
           <ApexAreaChart
             v-if="volumeChartData.length > 0"
@@ -247,9 +251,19 @@
 
         <!-- Market Cap Chart -->
         <div class="glass-card p-6">
-          <div class="mb-6">
-            <h3 class="text-xl font-bold text-white mb-1">Market Cap Evolution</h3>
-            <p class="text-sm text-gray-400">Market capitalization trend</p>
+          <div class="flex flex-col gap-4 mb-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-white mb-1">Market Cap Evolution</h3>
+                <p class="text-sm text-gray-400">{{ volumeTimeLabel }} market cap trend</p>
+              </div>
+            </div>
+            <div class="flex justify-start">
+              <TimeRangeSelector
+                v-model="volumeTimeRange"
+                :options="['1h', '4h', '12h', '24h', '7d']"
+              />
+            </div>
           </div>
           <ApexAreaChart
             v-if="marketCapChartData.length > 0"
@@ -279,7 +293,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCryptoStore } from '@/stores/crypto'
 import { useFormatting } from '@/composables/useFormatting'
+import { useTimeRange, type TimeRangeValue } from '@/composables/useTimeRange'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import TimeRangeSelector from '@/components/ui/TimeRangeSelector.vue'
 import ApexLineChart from '@/components/charts/ApexLineChart.vue'
 import ApexAreaChart from '@/components/charts/ApexAreaChart.vue'
 import {
@@ -292,7 +308,10 @@ const route = useRoute()
 const cryptoStore = useCryptoStore()
 const { formatPrice, formatNumber, formatPercentage } = useFormatting()
 
-const selectedPeriod = ref('24H')
+// Time range for main chart
+const { selectedRange: priceTimeRange, hours: priceHours, label: priceTimeLabel } = useTimeRange('24h')
+// Time range for volume and market cap charts
+const { selectedRange: volumeTimeRange, hours: volumeHours, label: volumeTimeLabel } = useTimeRange('24h')
 const loadingChart = ref(false)
 
 const selectedCrypto = computed(() => {
@@ -313,29 +332,17 @@ const formatSupply = (value: number | null | undefined) => {
   return value.toFixed(0)
 }
 
-// Get hours based on selected period
-const getHoursForPeriod = (period: string): number => {
-  switch (period) {
-    case '24H': return 24
-    case '7D': return 24 * 7
-    case '30D': return 24 * 30
-    case '1Y': return 24 * 365
-    default: return 24
-  }
-}
-
 // Fetch price history when period changes
 const fetchChartData = async () => {
   if (!selectedCrypto.value) return
 
   loadingChart.value = true
-  const hours = getHoursForPeriod(selectedPeriod.value)
-  await cryptoStore.fetchPriceHistory(selectedCrypto.value.symbol, hours)
+  await cryptoStore.fetchPriceHistory(selectedCrypto.value.symbol, priceHours.value)
   loadingChart.value = false
 }
 
-// Watch for period changes
-watch(selectedPeriod, () => {
+// Watch for time range changes
+watch(priceTimeRange, () => {
   fetchChartData()
 })
 
@@ -357,7 +364,7 @@ const priceChartData = computed(() => {
   const now = new Date()
   const data = []
   const price = selectedCrypto.value.current_price || 0
-  const hours = getHoursForPeriod(selectedPeriod.value)
+  const hours = priceHours.value
   const points = Math.min(hours, 100) // Limit points for performance
 
   for (let i = points; i >= 0; i--) {
@@ -378,9 +385,12 @@ const volumeChartData = computed(() => {
   const now = new Date()
   const data = []
   const volume = selectedCrypto.value.total_volume || 0
+  const hours = volumeHours.value
+  const points = Math.min(hours, 48) // Limit to 48 data points
+  const intervalMs = (hours * 3600000) / points
 
-  for (let i = 24; i >= 0; i--) {
-    const timestamp = new Date(now.getTime() - i * 3600000)
+  for (let i = points; i >= 0; i--) {
+    const timestamp = new Date(now.getTime() - i * intervalMs)
     const randomVariation = (Math.random() - 0.5) * volume * 0.1
     data.push({
       timestamp,
@@ -397,9 +407,12 @@ const marketCapChartData = computed(() => {
   const now = new Date()
   const data = []
   const marketCap = selectedCrypto.value.market_cap || 0
+  const hours = volumeHours.value
+  const points = Math.min(hours, 48) // Limit to 48 data points
+  const intervalMs = (hours * 3600000) / points
 
-  for (let i = 24; i >= 0; i--) {
-    const timestamp = new Date(now.getTime() - i * 3600000)
+  for (let i = points; i >= 0; i--) {
+    const timestamp = new Date(now.getTime() - i * intervalMs)
     const randomVariation = (Math.random() - 0.5) * marketCap * 0.02
     data.push({
       timestamp,

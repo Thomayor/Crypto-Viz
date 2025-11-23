@@ -1,7 +1,7 @@
 <template>
   <div class="clustering-viz">
     <div class="flex justify-between items-center mb-4">
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+      <h3 class="text-xl font-semibold text-white">
         Cryptocurrency Clustering
       </h3>
       <button
@@ -16,30 +16,30 @@
 
     <!-- Statistics Cards -->
     <div v-if="statistics" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-        <div class="text-sm text-gray-600 dark:text-gray-400">Total Cryptos</div>
-        <div class="text-2xl font-bold text-gray-900 dark:text-white">
+      <div class="bg-gray-800 p-4 rounded-lg shadow">
+        <div class="text-sm text-gray-400">Total Cryptos</div>
+        <div class="text-2xl font-bold text-white">
           {{ statistics.total_cryptos }}
         </div>
       </div>
 
-      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-        <div class="text-sm text-gray-600 dark:text-gray-400">Clusters</div>
-        <div class="text-2xl font-bold text-gray-900 dark:text-white">
+      <div class="bg-gray-800 p-4 rounded-lg shadow">
+        <div class="text-sm text-gray-400">Clusters</div>
+        <div class="text-2xl font-bold text-white">
           {{ statistics.num_clusters }}
         </div>
       </div>
 
-      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-        <div class="text-sm text-gray-600 dark:text-gray-400">Silhouette Score</div>
-        <div class="text-2xl font-bold text-gray-900 dark:text-white">
+      <div class="bg-gray-800 p-4 rounded-lg shadow">
+        <div class="text-sm text-gray-400">Silhouette Score</div>
+        <div class="text-2xl font-bold text-white">
           {{ statistics.overall_silhouette_score.toFixed(3) }}
         </div>
       </div>
 
-      <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-        <div class="text-sm text-gray-600 dark:text-gray-400">Largest Cluster</div>
-        <div class="text-2xl font-bold text-gray-900 dark:text-white">
+      <div class="bg-gray-800 p-4 rounded-lg shadow">
+        <div class="text-sm text-gray-400">Largest Cluster</div>
+        <div class="text-2xl font-bold text-white">
           {{ largestCluster?.crypto_count || 0 }}
         </div>
       </div>
@@ -50,15 +50,15 @@
       <div
         v-for="cluster in statistics?.clusters"
         :key="cluster.cluster_id"
-        class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg"
+        class="bg-gray-800 p-6 rounded-lg shadow-lg"
         :class="selectedCluster === cluster.cluster_id ? 'ring-2 ring-blue-500' : ''"
       >
         <div class="flex justify-between items-center mb-4">
           <div>
-            <h4 class="text-lg font-semibold text-gray-900 dark:text-white">
+            <h4 class="text-lg font-semibold text-white">
               {{ cluster.cluster_label }}
             </h4>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
+            <p class="text-sm text-gray-400">
               Cluster {{ cluster.cluster_id }}
             </p>
           </div>
@@ -72,10 +72,10 @@
 
         <div class="mb-4">
           <div class="flex justify-between text-sm mb-1">
-            <span class="text-gray-600 dark:text-gray-400">Silhouette Score</span>
+            <span class="text-gray-400">Silhouette Score</span>
             <span class="font-semibold">{{ cluster.avg_silhouette_score.toFixed(3) }}</span>
           </div>
-          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+          <div class="w-full bg-gray-700 rounded-full h-2">
             <div
               class="bg-blue-600 h-2 rounded-full"
               :style="{ width: `${(cluster.avg_silhouette_score * 100)}%` }"
@@ -85,7 +85,7 @@
 
         <button
           @click="viewClusterDetails(cluster.cluster_id)"
-          class="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          class="w-full px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
         >
           View Details
         </button>
@@ -98,22 +98,22 @@
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       @click.self="selectedCluster = null"
     >
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+      <div class="bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+        <div class="p-6 border-b border-gray-700">
           <div class="flex justify-between items-center">
-            <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
+            <h3 class="text-2xl font-bold text-white">
               {{ clusterDetails.cluster_label }}
             </h3>
             <button
               @click="selectedCluster = null"
-              class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              class="text-gray-500 hover:text-gray-300"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+          <p class="text-sm text-gray-400 mt-2">
             {{ clusterDetails.crypto_count }} cryptocurrencies in this cluster
           </p>
         </div>
@@ -126,9 +126,9 @@
               <div
                 v-for="(char, key) in clusterDetails.characteristics"
                 :key="key"
-                class="bg-gray-50 dark:bg-gray-700 p-3 rounded"
+                class="bg-gray-700 p-3 rounded"
               >
-                <div class="text-sm text-gray-600 dark:text-gray-400 capitalize">
+                <div class="text-sm text-gray-400 capitalize">
                   {{ key.replace(/_/g, ' ') }}
                 </div>
                 <div class="text-lg font-semibold">
@@ -148,7 +148,7 @@
               <div
                 v-for="crypto in clusterDetails.cryptos"
                 :key="crypto.symbol"
-                class="bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded text-center font-medium"
+                class="bg-gray-700 px-3 py-2 rounded text-center font-medium"
               >
                 {{ crypto.symbol }}
               </div>

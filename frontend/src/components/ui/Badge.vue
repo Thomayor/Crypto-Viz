@@ -27,11 +27,11 @@ const badgeClasses = computed(() => {
   }
 
   const variants = {
-    success: 'bg-green-100 text-green-800',
-    danger: 'bg-red-100 text-red-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    info: 'bg-blue-100 text-blue-800',
-    neutral: 'bg-gray-100 text-gray-800',
+    success: 'bg-green-900 text-green-200',
+    danger: 'bg-red-900 text-red-200',
+    warning: 'bg-yellow-900 text-yellow-200',
+    info: 'bg-blue-900 text-blue-200',
+    neutral: 'bg-gray-700 text-gray-200',
   }
 
   return `${base} ${sizes[props.size]} ${variants[props.variant]}`

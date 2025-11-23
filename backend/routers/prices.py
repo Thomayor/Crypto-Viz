@@ -85,6 +85,97 @@ async def get_all_prices(
         raise HTTPException(status_code=500, detail=f"Failed to retrieve prices: {str(e)}")
 
 
+@router.get("/rsi/daily-prices", summary="Get daily closing prices for RSI calculation")
+async def get_daily_prices_for_rsi(
+    days: int = Query(default=14, ge=2, le=30, description="Number of days (2-30, default: 14)")
+):
+    """
+    Get daily closing prices for all tracked cryptocurrencies for RSI calculation
+
+    - **days**: Number of days to fetch (2-30, default: 14)
+
+    Returns daily closing prices grouped by symbol for proper RSI calculation
+    """
+    cache = get_cache()
+    cache_key = f"rsi_daily:{days}"
+
+    # Try cache first (cache for 5 minutes since this is for dashboard)
+    cached = cache.get("rsi_daily", cache_key)
+    if cached:
+        logger.info(f"RSI daily prices cache hit: {days} days")
+        return cached
+
+    try:
+        pg_reader = get_pg_reader()
+
+        # Get daily closing prices for the last N days
+        # We'll query the database for daily aggregated data
+        hours = days * 24
+
+        # Get latest prices to know which symbols to track
+        latest_prices = pg_reader.get_latest_crypto_prices(limit=50)
+
+        result = {}
+
+        for coin in latest_prices:
+            symbol = coin['symbol']
+
+            # Get hourly history and group by day
+            history = pg_reader.get_crypto_price_history(symbol, hours=hours)
+
+            if not history:
+                continue
+
+            # Group by day and get the last price of each day
+            daily_prices = {}
+            for record in history:
+                timestamp = record.get('timestamp')
+                price = record.get('price')
+
+                if timestamp and price:
+                    # Extract date (YYYY-MM-DD)
+                    if isinstance(timestamp, str):
+                        date = timestamp.split('T')[0]
+                    else:
+                        date = timestamp.strftime('%Y-%m-%d')
+
+                    # Keep the latest price for each day
+                    if date not in daily_prices or timestamp > daily_prices[date]['timestamp']:
+                        daily_prices[date] = {
+                            'date': date,
+                            'price': float(price),
+                            'timestamp': timestamp
+                        }
+
+            # Sort by date and extract just the prices
+            sorted_days = sorted(daily_prices.keys())
+            daily_closing_prices = [daily_prices[day]['price'] for day in sorted_days]
+
+            if daily_closing_prices:
+                result[symbol] = {
+                    'symbol': symbol,
+                    'daily_prices': daily_closing_prices,
+                    'days_available': len(daily_closing_prices),
+                    'oldest_date': sorted_days[0] if sorted_days else None,
+                    'newest_date': sorted_days[-1] if sorted_days else None
+                }
+
+        response = {
+            'requested_days': days,
+            'coins': result,
+            'total_coins': len(result)
+        }
+
+        # Cache for 5 minutes
+        cache.set("rsi_daily", cache_key, response, ttl=300)
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error getting daily prices for RSI: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve daily prices: {str(e)}")
+
+
 @router.get("/{symbol}", response_model=CryptoPrice, summary="Get specific cryptocurrency price")
 async def get_price_by_symbol(
     symbol: str

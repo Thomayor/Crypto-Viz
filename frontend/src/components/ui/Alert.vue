@@ -53,10 +53,10 @@ const alertClasses = computed(() => {
   const base = 'rounded-lg p-4'
 
   const variants = {
-    success: 'bg-green-50 text-green-800 [&_svg]:text-green-400',
-    danger: 'bg-red-50 text-red-800 [&_svg]:text-red-400',
-    warning: 'bg-yellow-50 text-yellow-800 [&_svg]:text-yellow-400',
-    info: 'bg-blue-50 text-blue-800 [&_svg]:text-blue-400',
+    success: 'bg-green-900/20 text-green-300 [&_svg]:text-green-400',
+    danger: 'bg-red-900/20 text-red-300 [&_svg]:text-red-400',
+    warning: 'bg-yellow-900/20 text-yellow-300 [&_svg]:text-yellow-400',
+    info: 'bg-blue-900/20 text-blue-300 [&_svg]:text-blue-400',
   }
 
   return `${base} ${variants[props.variant]}`
