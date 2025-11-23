@@ -33,28 +33,28 @@
 
     <!-- Model Performance Metrics -->
     <div v-if="latestPrediction" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-gray-800 p-4 rounded-lg shadow">
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4">
         <div class="text-sm text-gray-400">Predicted Price</div>
         <div class="text-2xl font-bold text-blue-600">
           ${{ (latestPrediction.predicted_value || 0).toFixed(2) }}
         </div>
       </div>
 
-      <div class="bg-gray-800 p-4 rounded-lg shadow">
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4">
         <div class="text-sm text-gray-400">Confidence</div>
         <div class="text-2xl font-bold text-green-600">
           {{ ((latestPrediction.confidence || 0) * 100).toFixed(1) }}%
         </div>
       </div>
 
-      <div class="bg-gray-800 p-4 rounded-lg shadow">
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4">
         <div class="text-sm text-gray-400">RMSE</div>
         <div class="text-2xl font-bold text-white">
           {{ latestPrediction.rmse ? latestPrediction.rmse.toFixed(2) : 'N/A' }}
         </div>
       </div>
 
-      <div class="bg-gray-800 p-4 rounded-lg shadow">
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4">
         <div class="text-sm text-gray-400">R² Score</div>
         <div class="text-2xl font-bold text-purple-600">
           {{ latestPrediction.r2_score ? latestPrediction.r2_score.toFixed(3) : 'N/A' }}
@@ -63,10 +63,10 @@
     </div>
 
     <!-- Predictions Table -->
-    <div class="bg-gray-800 rounded-lg shadow overflow-hidden">
+    <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-700">
-          <thead class="bg-gray-900">
+          <thead class="bg-gray-900/50">
             <tr>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 Predicted At
@@ -85,7 +85,7 @@
               </th>
             </tr>
           </thead>
-          <tbody class="bg-gray-800 divide-y divide-gray-700">
+          <tbody class="bg-gray-800/30 divide-y divide-gray-700/50">
             <tr v-if="loading">
               <td colspan="5" class="px-6 py-4 text-center text-gray-500">
                 Loading predictions...
@@ -100,7 +100,7 @@
               v-else
               v-for="prediction in predictions.slice(0, 10)"
               :key="prediction.id"
-              class="hover:bg-gray-700"
+              class="hover:bg-gray-700/20 transition-colors"
             >
               <td class="px-6 py-4 whitespace-nowrap text-sm text-white">
                 {{ formatDate(prediction.predicted_at) }}

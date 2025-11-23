@@ -30,7 +30,7 @@
     </div>
 
     <!-- Heatmap -->
-    <div v-if="matrix" class="bg-gray-800 rounded-lg shadow p-6">
+    <div v-if="matrix" class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
       <!-- Matrix container with horizontal centering -->
       <div class="overflow-x-auto flex justify-center">
         <div class="min-w-max">
@@ -40,7 +40,7 @@
             <div
               v-for="symbol in matrix.symbols"
               :key="symbol"
-              class="w-20 text-center text-xs font-semibold text-gray-300 pb-2"
+              class="w-20 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider pb-2"
             >
               {{ symbol }}
             </div>
@@ -52,13 +52,13 @@
             :key="row.symbol"
             class="flex"
           >
-            <div class="w-16 flex items-center justify-end pr-2 text-xs font-semibold text-gray-300">
+            <div class="w-16 flex items-center justify-end pr-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               {{ row.symbol }}
             </div>
             <div
               v-for="(value, symbol) in row.correlations"
               :key="symbol"
-              class="w-20 h-16 border border-gray-700 relative group cursor-pointer"
+              class="w-20 h-16 border border-gray-700/50 relative group cursor-pointer transition-all hover:border-cyan-500/50"
               :style="{ backgroundColor: getColor(value) }"
               @click="showDetails(row.symbol, symbol, value)"
             >
@@ -69,7 +69,7 @@
 
               <!-- Tooltip -->
               <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                <div class="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                <div class="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap border border-gray-700">
                   {{ row.symbol }} ↔ {{ symbol }}: {{ value !== null ? value.toFixed(3) : 'N/A' }}
                 </div>
               </div>
@@ -96,16 +96,16 @@
     </div>
 
     <!-- Loading State -->
-    <div v-else-if="loading" class="bg-gray-800 rounded-lg shadow p-12 text-center">
-      <div class="text-gray-500">Loading correlation matrix...</div>
+    <div v-else-if="loading" class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-12 text-center">
+      <div class="text-gray-400">Loading correlation matrix...</div>
     </div>
 
     <!-- Empty State -->
-    <div v-else class="bg-gray-800 rounded-lg shadow p-12 text-center">
+    <div v-else class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-12 text-center">
       <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
       </svg>
-      <p class="text-gray-500 mb-2">No correlation data available</p>
+      <p class="text-gray-300 mb-2">No correlation data available</p>
       <p class="text-sm text-gray-400">Correlation analysis requires historical price data</p>
     </div>
 
@@ -215,21 +215,25 @@ async function loadMatrix() {
 }
 
 function getColor(value: number | null): string {
-  if (value === null) return '#e5e7eb'
+  if (value === null) return '#374151' // gray-700
 
-  // Red (-1) to White (0) to Green (+1)
+  // Red (-1) to Gray (0) to Green (+1)
   if (value < 0) {
-    const intensity = Math.abs(value) * 255
-    return `rgb(${intensity}, ${80}, ${80})`
+    // Negative correlation: red tones
+    const intensity = Math.abs(value)
+    const r = 120 + (intensity * 135) // 120-255
+    return `rgb(${r}, 50, 50)`
   } else {
-    const intensity = value * 255
-    return `rgb(${80}, ${intensity}, ${80})`
+    // Positive correlation: green tones
+    const intensity = value
+    const g = 120 + (intensity * 135) // 120-255
+    return `rgb(50, ${g}, 50)`
   }
 }
 
 function getTextColor(value: number | null): string {
-  if (value === null) return 'text-gray-600'
-  return Math.abs(value) > 0.5 ? 'text-white' : 'text-gray-900'
+  if (value === null) return 'text-gray-400'
+  return Math.abs(value) > 0.6 ? 'text-white font-bold' : 'text-gray-200'
 }
 
 function getCoefficientClass(value: number | null): string {

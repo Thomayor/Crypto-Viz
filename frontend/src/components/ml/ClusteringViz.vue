@@ -16,28 +16,28 @@
 
     <!-- Statistics Cards -->
     <div v-if="statistics" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-gray-800 p-4 rounded-lg shadow">
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4">
         <div class="text-sm text-gray-400">Total Cryptos</div>
         <div class="text-2xl font-bold text-white">
           {{ statistics.total_cryptos }}
         </div>
       </div>
 
-      <div class="bg-gray-800 p-4 rounded-lg shadow">
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4">
         <div class="text-sm text-gray-400">Clusters</div>
         <div class="text-2xl font-bold text-white">
           {{ statistics.num_clusters }}
         </div>
       </div>
 
-      <div class="bg-gray-800 p-4 rounded-lg shadow">
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4">
         <div class="text-sm text-gray-400">Silhouette Score</div>
         <div class="text-2xl font-bold text-white">
           {{ statistics.overall_silhouette_score.toFixed(3) }}
         </div>
       </div>
 
-      <div class="bg-gray-800 p-4 rounded-lg shadow">
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4">
         <div class="text-sm text-gray-400">Largest Cluster</div>
         <div class="text-2xl font-bold text-white">
           {{ largestCluster?.crypto_count || 0 }}
@@ -50,7 +50,7 @@
       <div
         v-for="cluster in statistics?.clusters"
         :key="cluster.cluster_id"
-        class="bg-gray-800 p-6 rounded-lg shadow-lg"
+        class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 transition-all hover:border-cyan-500/50"
         :class="selectedCluster === cluster.cluster_id ? 'ring-2 ring-blue-500' : ''"
       >
         <div class="flex justify-between items-center mb-4">
@@ -98,7 +98,7 @@
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       @click.self="selectedCluster = null"
     >
-      <div class="bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
         <div class="p-6 border-b border-gray-700">
           <div class="flex justify-between items-center">
             <h3 class="text-2xl font-bold text-white">

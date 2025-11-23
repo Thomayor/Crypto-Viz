@@ -105,7 +105,7 @@
         Loading anomalies...
       </div>
 
-      <div v-else-if="anomalies.length === 0" class="bg-gray-800 rounded-lg shadow p-8 text-center">
+      <div v-else-if="anomalies.length === 0" class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-8 text-center">
         <svg class="w-16 h-16 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -117,7 +117,7 @@
         v-else
         v-for="anomaly in anomalies"
         :key="anomaly.id"
-        class="bg-gray-800 rounded-lg shadow-lg overflow-hidden border-l-4"
+        class="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 overflow-hidden border-l-4 transition-all hover:border-cyan-500/30"
         :class="getSeverityBorderClass(anomaly.severity)"
       >
         <div class="p-6">
