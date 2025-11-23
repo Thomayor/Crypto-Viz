@@ -20,8 +20,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-
-export type TimeRangeValue = '1h' | '4h' | '12h' | '24h' | '7d' | '30d' | '90d'
+import type { TimeRangeValue } from '@/composables/useTimeRange'
 
 interface TimeOption {
   label: string
@@ -66,12 +65,6 @@ const selectTimeRange = (value: TimeRangeValue) => {
   if (option) {
     emit('change', value, option.hours)
   }
-}
-
-// Utility function to convert TimeRangeValue to hours
-export const timeRangeToHours = (range: TimeRangeValue): number => {
-  const option = allTimeOptions.find(o => o.value === range)
-  return option?.hours || 24
 }
 </script>
 
