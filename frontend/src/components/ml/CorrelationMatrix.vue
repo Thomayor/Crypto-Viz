@@ -2,10 +2,10 @@
   <div class="correlation-matrix">
     <div class="flex justify-between items-center mb-4">
       <div>
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+        <h3 class="text-xl font-semibold text-white">
           Correlation Matrix
         </h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400">
+        <p class="text-sm text-gray-400">
           Correlation relationships between cryptocurrencies
         </p>
       </div>
@@ -13,7 +13,7 @@
         <select
           v-model="timeWindow"
           @change="loadMatrix"
-          class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm"
+          class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm"
         >
           <option value="1d">1 Day</option>
           <option value="7d">7 Days</option>
@@ -30,7 +30,7 @@
     </div>
 
     <!-- Heatmap -->
-    <div v-if="matrix" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <div v-if="matrix" class="bg-gray-800 rounded-lg shadow p-6">
       <!-- Matrix container with horizontal centering -->
       <div class="overflow-x-auto flex justify-center">
         <div class="min-w-max">
@@ -40,7 +40,7 @@
             <div
               v-for="symbol in matrix.symbols"
               :key="symbol"
-              class="w-20 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 pb-2"
+              class="w-20 text-center text-xs font-semibold text-gray-300 pb-2"
             >
               {{ symbol }}
             </div>
@@ -52,13 +52,13 @@
             :key="row.symbol"
             class="flex"
           >
-            <div class="w-16 flex items-center justify-end pr-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+            <div class="w-16 flex items-center justify-end pr-2 text-xs font-semibold text-gray-300">
               {{ row.symbol }}
             </div>
             <div
               v-for="(value, symbol) in row.correlations"
               :key="symbol"
-              class="w-20 h-16 border border-gray-200 dark:border-gray-700 relative group cursor-pointer"
+              class="w-20 h-16 border border-gray-700 relative group cursor-pointer"
               :style="{ backgroundColor: getColor(value) }"
               @click="showDetails(row.symbol, symbol, value)"
             >
@@ -82,26 +82,26 @@
       <div class="mt-6 flex items-center justify-center gap-4">
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 rounded" :style="{ backgroundColor: getColor(-1) }"></div>
-          <span class="text-xs text-gray-600 dark:text-gray-400">-1.0 (Negative)</span>
+          <span class="text-xs text-gray-400">-1.0 (Negative)</span>
         </div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 rounded" :style="{ backgroundColor: getColor(0) }"></div>
-          <span class="text-xs text-gray-600 dark:text-gray-400">0.0 (None)</span>
+          <span class="text-xs text-gray-400">0.0 (None)</span>
         </div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 rounded" :style="{ backgroundColor: getColor(1) }"></div>
-          <span class="text-xs text-gray-600 dark:text-gray-400">+1.0 (Positive)</span>
+          <span class="text-xs text-gray-400">+1.0 (Positive)</span>
         </div>
       </div>
     </div>
 
     <!-- Loading State -->
-    <div v-else-if="loading" class="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+    <div v-else-if="loading" class="bg-gray-800 rounded-lg shadow p-12 text-center">
       <div class="text-gray-500">Loading correlation matrix...</div>
     </div>
 
     <!-- Empty State -->
-    <div v-else class="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+    <div v-else class="bg-gray-800 rounded-lg shadow p-12 text-center">
       <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
       </svg>
@@ -110,11 +110,11 @@
     </div>
 
     <!-- Interpretation Guide -->
-    <div class="mt-6 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-      <h4 class="font-semibold text-purple-900 dark:text-purple-200 mb-2">
+    <div class="mt-6 bg-purple-900/20 border border-purple-800 rounded-lg p-4">
+      <h4 class="font-semibold text-purple-200 mb-2">
         Understanding Correlation
       </h4>
-      <div class="text-sm text-purple-800 dark:text-purple-300 space-y-2">
+      <div class="text-sm text-purple-300 space-y-2">
         <p>
           <span class="font-semibold">+1.0:</span> Perfect positive correlation - prices move together
         </p>
@@ -133,9 +133,9 @@
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       @click.self="selectedPair = null"
     >
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+      <div class="bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+          <h3 class="text-xl font-bold text-white">
             {{ selectedPair.symbol1 }} ↔ {{ selectedPair.symbol2 }}
           </h3>
           <button
@@ -150,15 +150,15 @@
 
         <div class="space-y-4">
           <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">Correlation Coefficient</div>
+            <div class="text-sm text-gray-400">Correlation Coefficient</div>
             <div class="text-3xl font-bold" :class="getCoefficientClass(selectedPair.value)">
               {{ selectedPair.value?.toFixed(3) || 'N/A' }}
             </div>
           </div>
 
           <div>
-            <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">Strength</div>
-            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+            <div class="text-sm text-gray-400 mb-2">Strength</div>
+            <div class="w-full bg-gray-700 rounded-full h-3">
               <div
                 class="h-3 rounded-full"
                 :class="getStrengthBarClass(selectedPair.value)"
@@ -170,7 +170,7 @@
             </div>
           </div>
 
-          <div class="text-sm text-gray-700 dark:text-gray-300">
+          <div class="text-sm text-gray-300">
             <span v-if="selectedPair.value && selectedPair.value > 0.7">
               These cryptocurrencies tend to move together strongly. When one goes up, the other typically does too.
             </span>
@@ -236,7 +236,7 @@ function getCoefficientClass(value: number | null): string {
   if (!value) return 'text-gray-500'
   if (value > 0.7) return 'text-green-600'
   if (value < -0.7) return 'text-red-600'
-  return 'text-gray-900 dark:text-white'
+  return 'text-white'
 }
 
 function getStrengthBarClass(value: number | null): string {

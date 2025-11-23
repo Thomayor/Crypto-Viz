@@ -222,7 +222,7 @@
             <p class="text-sm text-gray-400 mb-3">{{ anomaly.description }}</p>
 
             <div class="flex items-center justify-between pt-3 border-t border-gray-700/50">
-              <div class="text-xs text-gray-500">Anomaly Score</div>
+              <div class="text-xs text-gray-400">Anomaly Score</div>
               <div class="text-sm font-bold text-white">{{ (anomaly.metadata?.anomaly_score || 0).toFixed(2) }}</div>
             </div>
           </div>

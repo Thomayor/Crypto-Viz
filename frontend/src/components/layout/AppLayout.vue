@@ -57,7 +57,7 @@
       </div>
 
       <!-- Mobile Navigation -->
-      <div v-if="mobileMenuOpen" class="md:hidden border-t border-gray-200 bg-white">
+      <div v-if="mobileMenuOpen" class="md:hidden border-t border-gray-700 bg-gray-900">
         <div class="px-2 pt-2 pb-3 space-y-1">
           <router-link
             v-for="item in navigation"
@@ -67,8 +67,8 @@
             :class="[
               'flex items-center gap-2 px-3 py-2 rounded-lg text-base font-medium transition-colors',
               isActive(item.path)
-                ? 'bg-primary-100 text-primary-700'
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+                ? 'bg-cyan-500/20 text-cyan-400'
+                : 'text-gray-400 hover:bg-gray-800 hover:text-white',
             ]"
           >
             <component :is="item.icon" class="h-5 w-5" />
@@ -88,10 +88,10 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white border-t border-gray-200 mt-12">
+    <footer class="bg-gray-900 border-t border-gray-700 mt-12">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div class="text-sm text-gray-600">
+          <div class="text-sm text-gray-400">
             <span class="font-semibold">CRYPTO VIZ</span> - Real-time cryptocurrency data analytics
             powered by pandas, DuckDB & Apache Spark
           </div>
@@ -102,7 +102,7 @@
               href="https://github.com/EpitechMscProPromo2026"
               target="_blank"
               rel="noopener noreferrer"
-              class="hover:text-primary-600 transition-colors"
+              class="hover:text-cyan-400 transition-colors"
             >
               GitHub
             </a>

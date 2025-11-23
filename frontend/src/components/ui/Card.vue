@@ -1,8 +1,8 @@
 <template>
   <div :class="cardClasses">
-    <div v-if="title || $slots.header" class="border-b border-gray-200 pb-4 mb-4">
+    <div v-if="title || $slots.header" class="border-b border-gray-700 pb-4 mb-4">
       <slot name="header">
-        <h3 class="text-lg font-semibold text-gray-900">{{ title }}</h3>
+        <h3 class="text-lg font-semibold text-white">{{ title }}</h3>
       </slot>
     </div>
 
@@ -10,7 +10,7 @@
       <slot></slot>
     </div>
 
-    <div v-if="$slots.footer" class="border-t border-gray-200 pt-4 mt-4">
+    <div v-if="$slots.footer" class="border-t border-gray-700 pt-4 mt-4">
       <slot name="footer"></slot>
     </div>
   </div>
@@ -31,12 +31,12 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const cardClasses = computed(() => {
-  const base = 'bg-white rounded-lg'
+  const base = 'bg-gray-800 rounded-lg'
   const padding = props.noPadding ? '' : 'p-6'
 
   const variants = {
     default: 'shadow-md',
-    bordered: 'border-2 border-gray-200',
+    bordered: 'border-2 border-gray-700',
     elevated: 'shadow-xl',
   }
 

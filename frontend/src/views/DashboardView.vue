@@ -126,14 +126,14 @@
                   :style="{ width: `${btcDominance}%` }"
                 ></div>
               </div>
-              <div class="text-xs text-gray-500">{{ (100 - btcDominance).toFixed(1) }}% altcoins</div>
+              <div class="text-xs text-gray-400">{{ (100 - btcDominance).toFixed(1) }}% altcoins</div>
             </div>
           </div>
 
           <!-- Average RSI -->
           <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/60 rounded-xl p-6 border border-gray-700/50 hover:border-orange-500/30 transition-all">
             <div class="flex items-center justify-between mb-4">
-              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Avg. RSI (14)</div>
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Avg. RSI ({{ rsiPeriodUsed }})</div>
               <div class="p-2 bg-orange-500/10 rounded-lg">
                 <ChartBarIcon class="h-5 w-5 text-orange-400" />
               </div>
@@ -154,7 +154,7 @@
                   :style="{ width: `${averageRSI}%` }"
                 ></div>
               </div>
-              <div class="text-xs text-gray-500">
+              <div class="text-xs text-gray-400">
                 {{ averageRSI >= 70 ? 'Overbought' : averageRSI >= 50 ? 'Neutral-High' : averageRSI >= 30 ? 'Neutral-Low' : 'Oversold' }}
               </div>
             </div>
@@ -178,7 +178,7 @@
               @change="handleChartCoinChange"
               class="px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm
                      hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent
-                     transition-all duration-200"
+                     transition-all duration-200 cursor-pointer"
             >
               <option
                 v-for="coin in cryptoStore.prices.slice(0, 20)"
@@ -354,6 +354,7 @@ import { useCryptoStore } from '@/stores/crypto'
 import { useAnalyticsStore } from '@/stores/analytics'
 import { useFormatting } from '@/composables/useFormatting'
 import { usePolling } from '@/composables/usePolling'
+import { api } from '@/services/api'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import StatsCard from '@/components/ui/StatsCard.vue'
 import CryptoCard from '@/components/ui/CryptoCard.vue'
@@ -373,6 +374,10 @@ import {
 const cryptoStore = useCryptoStore()
 const analyticsStore = useAnalyticsStore()
 
+// RSI data state
+const rsiDailyData = ref<any>(null)
+const rsiPeriodUsed = ref(14)
+
 const {
   formatPrice,
   formatNumber,
@@ -383,6 +388,22 @@ const {
 // Number of displayed cryptos (for load more functionality)
 const displayedCryptos = ref(20)
 
+// Function to fetch RSI daily data
+async function fetchRSIDailyData() {
+  try {
+    const data = await api.getDailyPricesForRSI(14)
+    rsiDailyData.value = data
+
+    // Calculate the actual period used (minimum days available across all coins)
+    if (data.coins && Object.keys(data.coins).length > 0) {
+      const daysAvailable = Object.values(data.coins).map((coin: any) => coin.days_available || 0)
+      rsiPeriodUsed.value = Math.min(...daysAvailable)
+    }
+  } catch (error) {
+    console.error('Error fetching RSI daily data:', error)
+  }
+}
+
 // Polling for real-time updates
 usePolling(async () => {
   await cryptoStore.fetchLatestPrices(50)
@@ -391,6 +412,11 @@ usePolling(async () => {
 usePolling(async () => {
   await analyticsStore.fetchAnomalies()
 }, 60000)
+
+// Poll RSI data every 5 minutes (less frequent since it's daily data)
+usePolling(async () => {
+  await fetchRSIDailyData()
+}, 300000)
 
 // Computed properties
 const averageSentimentScore = computed(() => {
@@ -416,16 +442,24 @@ const btcDominance = computed(() => {
   return totalMarketCap > 0 ? parseFloat(((bitcoin.market_cap / totalMarketCap) * 100).toFixed(1)) : 0
 })
 
-// Average RSI calculation (Relative Strength Index)
-const averageRSI = computed(() => {
-  if (cryptoStore.prices.length === 0) return 50
+// Helper function to calculate RSI for a single coin
+function calculateRSI(dailyPrices: number[]): number {
+  if (dailyPrices.length < 2) return 50
 
-  // Calculate RSI based on 24h price changes
+  // Calculate daily changes
+  const changes: number[] = []
+  for (let i = 1; i < dailyPrices.length; i++) {
+    const change = dailyPrices[i] - dailyPrices[i - 1]
+    changes.push(change)
+  }
+
+  if (changes.length === 0) return 50
+
+  // Separate gains and losses
   const gains: number[] = []
   const losses: number[] = []
 
-  cryptoStore.prices.forEach(coin => {
-    const change = coin.price_change_percentage_24h || 0
+  changes.forEach(change => {
     if (change > 0) {
       gains.push(change)
     } else if (change < 0) {
@@ -435,14 +469,43 @@ const averageRSI = computed(() => {
 
   if (gains.length === 0 && losses.length === 0) return 50
 
+  // Calculate average gain and loss
   const avgGain = gains.length > 0 ? gains.reduce((a, b) => a + b, 0) / gains.length : 0
   const avgLoss = losses.length > 0 ? losses.reduce((a, b) => a + b, 0) / losses.length : 0
 
   if (avgLoss === 0) return 100
+  if (avgGain === 0) return 0
+
+  // Calculate RSI
   const rs = avgGain / avgLoss
   const rsi = 100 - (100 / (1 + rs))
 
-  return parseFloat(rsi.toFixed(1))
+  return rsi
+}
+
+// Average RSI calculation (Relative Strength Index) - Now with historical data
+const averageRSI = computed(() => {
+  if (!rsiDailyData.value || !rsiDailyData.value.coins) {
+    return 50
+  }
+
+  const coins = rsiDailyData.value.coins
+  const rsiValues: number[] = []
+
+  // Calculate RSI for each coin
+  Object.values(coins).forEach((coinData: any) => {
+    if (coinData.daily_prices && coinData.daily_prices.length >= 2) {
+      const rsi = calculateRSI(coinData.daily_prices)
+      rsiValues.push(rsi)
+    }
+  })
+
+  if (rsiValues.length === 0) return 50
+
+  // Calculate average RSI across all coins
+  const avgRSI = rsiValues.reduce((a, b) => a + b, 0) / rsiValues.length
+
+  return parseFloat(avgRSI.toFixed(1))
 })
 
 // Mock trend data for sparklines
@@ -499,7 +562,8 @@ onMounted(async () => {
   await Promise.all([
     cryptoStore.fetchLatestPrices(50),
     analyticsStore.fetchSentiment(),
-    analyticsStore.fetchAnomalies()
+    analyticsStore.fetchAnomalies(),
+    fetchRSIDailyData()
   ])
 })
 </script>

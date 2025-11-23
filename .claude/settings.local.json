@@ -23,7 +23,8 @@
       "Bash(docker volume:*)",
       "Bash(python:*)",
       "Bash(make restart-full:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(ssh:*)"
     ],
     "deny": [],
     "ask": []

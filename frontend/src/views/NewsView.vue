@@ -154,7 +154,7 @@
               <div :class="['sentiment-badge', getSentimentBadgeClass(article.sentiment_label)]">
                 {{ article.sentiment_label }}
               </div>
-              <div class="text-xs text-gray-500">
+              <div class="text-xs text-gray-400">
                 {{ formatDate(article.published_at) }}
               </div>
             </div>
@@ -172,7 +172,7 @@
                 <div class="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
                   <span class="text-white text-xs font-bold">{{ article.source?.substring(0, 1).toUpperCase() }}</span>
                 </div>
-                <span class="text-xs text-gray-500">{{ article.source }}</span>
+                <span class="text-xs text-gray-400">{{ article.source }}</span>
               </div>
 
               <a
@@ -261,7 +261,7 @@
 
                 <p class="text-sm text-gray-300 mb-3 line-clamp-3">{{ post.content }}</p>
 
-                <div class="flex items-center gap-4 text-xs text-gray-500">
+                <div class="flex items-center gap-4 text-xs text-gray-400">
                   <div class="flex items-center gap-1">
                     <HeartIcon class="h-4 w-4" />
                     {{ post.engagement_score || 0 }}
@@ -379,17 +379,17 @@ const getSentimentBadgeClass = (sentiment: string) => {
 const getSentimentDotClass = (sentiment: string) => {
   const label = sentiment?.toUpperCase()
   const classes = {
-    POSITIVE: 'bg-green-500',
-    NEUTRAL: 'bg-gray-500',
-    NEGATIVE: 'bg-red-500'
+    POSITIVE: 'bg-green-400',
+    NEUTRAL: 'bg-gray-400',
+    NEGATIVE: 'bg-red-400'
   }
-  return classes[label as keyof typeof classes] || 'bg-gray-500'
+  return classes[label as keyof typeof classes] || 'bg-gray-400'
 }
 
 const getSentimentBarClass = (score: number) => {
-  if (score >= 0.66) return 'bg-gradient-to-r from-green-500 to-emerald-500'
-  if (score <= 0.33) return 'bg-gradient-to-r from-red-500 to-rose-500'
-  return 'bg-gradient-to-r from-gray-500 to-slate-500'
+  if (score >= 0.66) return 'bg-gradient-to-r from-green-400 to-emerald-400'
+  if (score <= 0.33) return 'bg-gradient-to-r from-red-400 to-rose-400'
+  return 'bg-gradient-to-r from-gray-400 to-slate-400'
 }
 
 // Initial fetch
@@ -443,7 +443,7 @@ onMounted(async () => {
 }
 
 .sentiment-neutral {
-  @apply bg-gray-500/20 text-gray-400 border border-gray-500/30;
+  @apply bg-gray-400/20 text-gray-300 border border-gray-400/30;
 }
 
 .sentiment-negative {
