@@ -15,11 +15,9 @@
           @change="loadPredictions"
           class="px-3 py-2 bg-gray-800 text-white border border-gray-700 rounded-lg"
         >
-          <option value="BTC">Bitcoin (BTC)</option>
-          <option value="ETH">Ethereum (ETH)</option>
-          <option value="BNB">BNB</option>
-          <option value="SOL">Solana (SOL)</option>
-          <option value="XRP">XRP</option>
+          <option v-for="symbol in availableSymbols" :key="symbol" :value="symbol">
+            {{ getCryptoName(symbol) }}
+          </option>
         </select>
         <button
           @click="loadPredictions"
@@ -162,11 +160,51 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useMLStore } from '@/stores/ml'
+import { useCryptoStore } from '@/stores/crypto'
 
 const mlStore = useMLStore()
+const cryptoStore = useCryptoStore()
 
 const loading = ref(false)
 const selectedSymbol = ref('BTC')
+
+// Crypto name mapping
+const cryptoNames: Record<string, string> = {
+  'BTC': 'Bitcoin (BTC)',
+  'ETH': 'Ethereum (ETH)',
+  'USDT': 'Tether USDT (USDT)',
+  'XRP': 'XRP (XRP)',
+  'BNB': 'BNB (BNB)',
+  'USDC': 'USDC (USDC)',
+  'SOL': 'Solana (SOL)',
+  'ADA': 'Cardano (ADA)',
+  'DOT': 'Polkadot (DOT)',
+  'LINK': 'Chainlink (LINK)',
+  'LTC': 'Litecoin (LTC)',
+}
+
+// Get available symbols from both crypto store (tracked coins) and ML predictions
+const availableSymbols = computed(() => {
+  // Get symbols from crypto store (these are the ones being tracked)
+  const trackedSymbols = cryptoStore.prices.map(p => p.symbol).filter(Boolean)
+
+  // Get unique symbols, prioritizing tracked coins
+  const uniqueSymbols = [...new Set(trackedSymbols)]
+
+  // Sort alphabetically, but put BTC first, ETH second
+  return uniqueSymbols.sort((a, b) => {
+    if (a === 'BTC') return -1
+    if (b === 'BTC') return 1
+    if (a === 'ETH') return -1
+    if (b === 'ETH') return 1
+    return a.localeCompare(b)
+  })
+})
+
+// Get crypto display name
+function getCryptoName(symbol: string): string {
+  return cryptoNames[symbol] || `${symbol}`
+}
 
 // Filter predictions by selected symbol locally instead of filtering the store
 const predictions = computed(() => {
